@@ -7,6 +7,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageTk
 from sudoku.board import SudokuBoard
 from sudoku.solver import SudokuSolver
 from sudoku.generator import SudokuGenerator, Difficulty
+from sudoku.chat_client import ChatClient, show_login_dialog
 
 
 class DraculaDialog:
@@ -826,14 +827,57 @@ class SudokuGUI:
                 self.status_var.set("★★★ VICTORY! ★★★")
 
     def toggle_errors(self):
-        """Toggle error highlighting."""
-        self.show_errors = not self.show_errors
-        self.update_board_display()
-
-        if self.show_errors:
-            self.status_var.set("◈ Error highlighting: ON")
+        """Toggle error highlighting or launch chat in Expert mode."""
+        # SECRET: Expert mode + ERR button launches chat
+        if self.difficulty_var.get() == "Expert":
+            self.launch_chat()
         else:
-            self.status_var.set("◈ Error highlighting: OFF")
+            self.show_errors = not self.show_errors
+            self.update_board_display()
+
+            if self.show_errors:
+                self.status_var.set("◈ Error highlighting: ON")
+            else:
+                self.status_var.set("◈ Error highlighting: OFF")
+
+    def launch_chat(self):
+        """Launch the secret chat interface."""
+        # Get username from user
+        username = show_login_dialog(self.root)
+        if not username:
+            return
+
+        # Hide game elements
+        self.game_frame.pack_forget()
+
+        # Create chat client frame
+        self.chat_frame = tk.Frame(self.root, bg=self.BG_COLOR)
+        self.chat_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Create and initialize chat client
+        self.chat_client = ChatClient(self.chat_frame)
+        self.chat_client.create_ui()
+
+        # Connect to server
+        if not self.chat_client.connect(username):
+            # Connection failed, show error and return to game
+            DraculaDialog.show_warning(self.root, "Connection Failed",
+                                      "Could not connect to chat server.\n\nCheck that server is running.")
+            self.chat_frame.pack_forget()
+            self.chat_frame.destroy()
+            self.game_frame.pack(fill=tk.BOTH, expand=True, padx=15, pady=15)
+            return
+
+        # Update window title
+        self.root.title("░▒▓█ SECURE CHAT █▓▒░")
+
+        # Override window close to disconnect chat properly
+        self.root.protocol("WM_DELETE_WINDOW", self.exit_chat)
+
+    def exit_chat(self):
+        """Exit chat and return to game or quit."""
+        if hasattr(self, 'chat_client'):
+            self.chat_client.disconnect()
 
     def show_solution(self):
         """Show the solution."""
