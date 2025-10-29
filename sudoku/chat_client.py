@@ -344,10 +344,16 @@ def show_login_dialog(parent):
     dialog.grab_set()
 
     # Center dialog
+    parent.update_idletasks()
     dialog.update_idletasks()
-    x = parent.winfo_x() + (parent.winfo_width() // 2) - 175
-    y = parent.winfo_y() + (parent.winfo_height() // 2) - 90
-    dialog.geometry(f"350x180+{x}+{y}")
+
+    try:
+        x = parent.winfo_x() + (parent.winfo_width() // 2) - 175
+        y = parent.winfo_y() + (parent.winfo_height() // 2) - 90
+        dialog.geometry(f"350x180+{x}+{y}")
+    except:
+        # If centering fails, just show at default position
+        pass
 
     # Content
     tk.Label(
