@@ -1,0 +1,5 @@
+# No external dependencies required for core functionality
+# Python standard library only
+
+# Development dependencies (optional)
+# pytest>=7.0.0  # Alternative test runner
