@@ -1,5 +1,5 @@
-# No external dependencies required for core functionality
-# Python standard library only
+# GUI Dependencies
+Pillow>=10.0.0  # Required for logo rendering in GUI
 
 # Development dependencies (optional)
-# pytest>=7.0.0  # Alternative test runner
+pytest>=7.0.0  # For running tests
