@@ -8,6 +8,7 @@ from sudoku.board import SudokuBoard
 from sudoku.solver import SudokuSolver
 from sudoku.generator import SudokuGenerator, Difficulty
 from sudoku.chat_client import ChatClient, show_login_dialog
+from sudoku.operations_client import OperationsClient
 
 
 class DraculaDialog:
@@ -854,8 +855,9 @@ class SudokuGUI:
         self.chat_frame = tk.Frame(self.root, bg=self.BG_COLOR)
         self.chat_frame.pack(fill=tk.BOTH, expand=True)
 
-        # Create and initialize chat client with exit callback
-        self.chat_client = ChatClient(self.chat_frame, exit_callback=self.exit_chat)
+        # Create and initialize chat client with exit and operations callbacks
+        self.chat_client = ChatClient(self.chat_frame, exit_callback=self.exit_chat,
+                                      operations_callback=self.launch_operations)
         self.chat_client.create_ui()
 
         # Connect to server
@@ -874,8 +876,45 @@ class SudokuGUI:
         # Override window close to disconnect chat properly
         self.root.protocol("WM_DELETE_WINDOW", self.exit_chat)
 
+    def launch_operations(self):
+        """Launch operations wiki interface."""
+        # Hide chat frame
+        if hasattr(self, 'chat_frame'):
+            self.chat_frame.pack_forget()
+
+        # Create operations frame
+        self.ops_frame = tk.Frame(self.root, bg=self.BG_COLOR)
+        self.ops_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Create operations client with callbacks
+        self.ops_client = OperationsClient(
+            self.ops_frame,
+            self.chat_client.socket,
+            self.chat_client.username,
+            exit_callback=self.exit_chat,
+            chat_callback=self.return_to_chat
+        )
+        self.ops_client.create_ui()
+
+        # Update window title
+        self.root.title("░▒▓█ OPERATIONS DATABASE █▓▒░")
+
+    def return_to_chat(self):
+        """Return from operations to chat."""
+        # Hide operations frame
+        if hasattr(self, 'ops_frame'):
+            self.ops_frame.pack_forget()
+            self.ops_frame.destroy()
+
+        # Show chat frame again
+        if hasattr(self, 'chat_frame'):
+            self.chat_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Restore chat title
+        self.root.title("░▒▓█ SECURE CHAT █▓▒░")
+
     def exit_chat(self):
-        """Exit chat and return to game."""
+        """Exit chat/operations and return to game."""
         if hasattr(self, 'chat_client'):
             self.chat_client.disconnect()
 
@@ -883,6 +922,11 @@ class SudokuGUI:
         if hasattr(self, 'chat_frame'):
             self.chat_frame.pack_forget()
             self.chat_frame.destroy()
+
+        # Hide operations frame if present
+        if hasattr(self, 'ops_frame'):
+            self.ops_frame.pack_forget()
+            self.ops_frame.destroy()
 
         # Show game frame again
         self.main_frame.pack(fill=tk.BOTH, expand=True)

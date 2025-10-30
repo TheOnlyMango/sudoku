@@ -11,6 +11,7 @@ import sqlite3
 import time
 from datetime import datetime
 from typing import Dict, Set
+from operations_db import OperationsDB
 
 
 class ChatServer:
@@ -26,6 +27,9 @@ class ChatServer:
 
         # Initialize database for offline messages
         self.init_database()
+
+        # Initialize operations database
+        self.ops_db = OperationsDB('operations.db')
 
     def init_database(self):
         """Initialize SQLite database for offline messages."""
@@ -161,6 +165,55 @@ class ChatServer:
                             if not self.send_to_user(recipient, f'DM:{username}:{message}'):
                                 self.store_offline_message(recipient, username, message)
                                 client_socket.send(f'INFO:Message to {recipient} stored (offline)\n'.encode('utf-8'))
+
+                    # OPERATIONS COMMANDS
+                    elif data.startswith('OP_LIST:'):
+                        # Get list of all operations
+                        ops = self.ops_db.get_all_operations()
+                        response = json.dumps(ops)
+                        client_socket.send(f'OP_LIST:{response}\n'.encode('utf-8'))
+
+                    elif data.startswith('OP_CREATE:'):
+                        # Create new operation: OP_CREATE:name:password:description
+                        parts = data[10:].split(':', 2)
+                        if len(parts) >= 2:
+                            op_name = parts[0]
+                            op_password = parts[1]
+                            op_description = parts[2] if len(parts) > 2 else ""
+                            success, msg = self.ops_db.create_operation(op_name, username, op_password, op_description)
+                            client_socket.send(f'OP_CREATE_RESULT:{success}:{msg}\n'.encode('utf-8'))
+
+                    elif data.startswith('OP_VERIFY:'):
+                        # Verify operation password: OP_VERIFY:name:password
+                        parts = data[10:].split(':', 1)
+                        if len(parts) == 2:
+                            op_name, op_password = parts
+                            valid = self.ops_db.verify_operation_password(op_name, op_password)
+                            client_socket.send(f'OP_VERIFY_RESULT:{valid}\n'.encode('utf-8'))
+
+                    elif data.startswith('OP_POSTS:'):
+                        # Get posts for operation: OP_POSTS:name
+                        op_name = data[9:]
+                        posts = self.ops_db.get_operation_posts(op_name)
+                        response = json.dumps(posts)
+                        client_socket.send(f'OP_POSTS:{response}\n'.encode('utf-8'))
+
+                    elif data.startswith('OP_POST:'):
+                        # Add post: OP_POST:op_name:comment:filename
+                        parts = data[8:].split(':', 2)
+                        if len(parts) >= 2:
+                            op_name = parts[0]
+                            comment = parts[1]
+                            filename = parts[2] if len(parts) > 2 else None
+                            success, msg = self.ops_db.add_post(op_name, username, comment, filename)
+                            client_socket.send(f'OP_POST_RESULT:{success}:{msg}\n'.encode('utf-8'))
+
+                    elif data.startswith('OP_INFO:'):
+                        # Get operation info: OP_INFO:name
+                        op_name = data[8:]
+                        op_info = self.ops_db.get_operation_info(op_name)
+                        response = json.dumps(op_info) if op_info else "null"
+                        client_socket.send(f'OP_INFO:{response}\n'.encode('utf-8'))
 
                 except Exception as e:
                     print(f"Error handling message from {username}: {e}")

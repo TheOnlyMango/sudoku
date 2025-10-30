@@ -11,7 +11,7 @@ from datetime import datetime
 class ChatClient:
     """90s style chat client with Dracula theme."""
 
-    def __init__(self, root, server_host='100.115.233.16', server_port=7331, exit_callback=None):
+    def __init__(self, root, server_host='100.115.233.16', server_port=7331, exit_callback=None, operations_callback=None):
         self.root = root
         self.server_host = server_host
         self.server_port = server_port
@@ -20,6 +20,7 @@ class ChatClient:
         self.running = False
         self.users = set()
         self.exit_callback = exit_callback
+        self.operations_callback = operations_callback
 
         # Dracula colors with 90s hacker twist
         self.BG_COLOR = "#282a36"
@@ -75,6 +76,33 @@ class ChatClient:
             abort_btn.config(bg="#8b0000", relief=tk.RAISED)
         abort_btn.bind("<Enter>", on_abort_enter)
         abort_btn.bind("<Leave>", on_abort_leave)
+
+        # OPERATIONS button - purple with cyberpunk style
+        if self.operations_callback:
+            ops_btn = tk.Button(
+                header_frame,
+                text="OPERATIONS",
+                command=self.operations_callback,
+                font=("Courier", 8, "bold"),
+                bg="#7b2cbf",  # Purple
+                fg="#00ff41",  # Matrix green
+                activebackground="#00ff41",
+                activeforeground="#7b2cbf",
+                width=12,
+                height=1,
+                relief=tk.RAISED,
+                bd=4,
+                cursor="hand2"
+            )
+            ops_btn.pack(side=tk.LEFT, padx=5)
+
+            # Add hover effect
+            def on_ops_enter(e):
+                ops_btn.config(bg="#00ff41", fg="#7b2cbf", relief=tk.RAISED)
+            def on_ops_leave(e):
+                ops_btn.config(bg="#7b2cbf", fg="#00ff41", relief=tk.RAISED)
+            ops_btn.bind("<Enter>", on_ops_enter)
+            ops_btn.bind("<Leave>", on_ops_leave)
 
         header = tk.Label(
             header_frame,

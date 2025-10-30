@@ -43,3 +43,6 @@ Thumbs.db
 
 # Chat
 chat_messages.db
+
+# Operations
+operations.db
