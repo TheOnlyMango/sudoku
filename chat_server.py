@@ -200,14 +200,17 @@ class ChatServer:
 
                     elif data.startswith('OP_POST:'):
                         # Add post: OP_POST:op_name:comment:filename:file_data_base64
-                        parts = data[8:].split(':', 4)
+                        parts = data[8:].split(':', 3)  # Split into 4 parts max
                         if len(parts) >= 2:
                             op_name = parts[0]
                             comment = parts[1]
-                            filename = parts[2] if len(parts) > 2 and parts[2] else None
-                            file_data_b64 = parts[4] if len(parts) > 4 and parts[4] else None
+                            # Parse the rest which is "filename:file_data"
+                            remaining = parts[2] if len(parts) > 2 else ':'
+                            filename_and_data = remaining.split(':', 1)
+                            filename = filename_and_data[0] if filename_and_data[0] else None
+                            file_data_b64 = filename_and_data[1] if len(filename_and_data) > 1 and filename_and_data[1] else None
 
-                            print(f"OP_POST: op={op_name}, comment={comment[:50]}, filename={filename}, has_file={bool(file_data_b64)}")
+                            print(f"OP_POST: op={op_name}, comment={comment[:50]}, filename={filename}, has_file={bool(file_data_b64)}, file_size={len(file_data_b64) if file_data_b64 else 0}")
 
                             # Save file to disk if provided
                             file_path = None
