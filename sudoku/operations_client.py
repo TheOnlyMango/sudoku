@@ -626,9 +626,18 @@ class OperationsClient:
             from tkinter import filedialog
 
             # Request file data from server
-            self.socket.settimeout(10.0)
-            self.socket.send(f'OP_FILE:{post["id"]}\n'.encode('utf-8'))
-            response = self.socket.recv(1048576).decode('utf-8').strip()  # 1MB buffer
+            self.socket.settimeout(30.0)  # Longer timeout for large files
+            self.socket.sendall(f'OP_FILE:{post["id"]}\n'.encode('utf-8'))
+
+            # Read response in chunks until we get the complete message
+            buffer = b''
+            while b'\n' not in buffer:
+                chunk = self.socket.recv(65536)
+                if not chunk:
+                    break
+                buffer += chunk
+
+            response = buffer.decode('utf-8').strip()
             self.socket.settimeout(None)
 
             if response.startswith('OP_FILE:'):
