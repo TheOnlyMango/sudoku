@@ -207,6 +207,8 @@ class ChatServer:
                             filename = parts[2] if len(parts) > 2 and parts[2] else None
                             file_data_b64 = parts[4] if len(parts) > 4 and parts[4] else None
 
+                            print(f"OP_POST: op={op_name}, comment={comment[:50]}, filename={filename}, has_file={bool(file_data_b64)}")
+
                             # Save file to disk if provided
                             file_path = None
                             if filename and file_data_b64:
@@ -221,11 +223,13 @@ class ChatServer:
                                     file_data = base64.b64decode(file_data_b64)
                                     with open(file_path, 'wb') as f:
                                         f.write(file_data)
+                                    print(f"File saved: {file_path} ({len(file_data)} bytes)")
                                 except Exception as e:
                                     print(f"Error saving file: {e}")
                                     file_path = None
 
                             success, msg = self.ops_db.add_post(op_name, username, comment, filename, file_path)
+                            print(f"add_post result: success={success}, msg={msg}")
                             client_socket.send(f'OP_POST_RESULT:{success}:{msg}\n'.encode('utf-8'))
 
                     elif data.startswith('OP_INFO:'):

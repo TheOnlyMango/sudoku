@@ -232,20 +232,33 @@ class OperationsDB:
         cursor = conn.cursor()
 
         cursor.execute('''
-            SELECT file_path FROM posts WHERE id = ?
+            SELECT file_path, filename FROM posts WHERE id = ?
         ''', (post_id,))
 
         result = cursor.fetchone()
         conn.close()
 
         if not result or not result[0]:
+            print(f"No file_path found for post_id: {post_id}")
             return None
+
+        file_path = result[0]
+        filename = result[1]
+        print(f"Attempting to read file: {file_path} (filename: {filename})")
 
         try:
             import base64
-            with open(result[0], 'rb') as f:
+            import os
+
+            # Check if file exists
+            if not os.path.exists(file_path):
+                print(f"File does not exist: {file_path}")
+                return None
+
+            with open(file_path, 'rb') as f:
                 file_data = f.read()
+            print(f"Successfully read {len(file_data)} bytes from {file_path}")
             return base64.b64encode(file_data).decode('utf-8')
         except Exception as e:
-            print(f"Error reading file: {e}")
+            print(f"Error reading file {file_path}: {e}")
             return None
