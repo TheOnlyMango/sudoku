@@ -854,8 +854,8 @@ class SudokuGUI:
         self.chat_frame = tk.Frame(self.root, bg=self.BG_COLOR)
         self.chat_frame.pack(fill=tk.BOTH, expand=True)
 
-        # Create and initialize chat client
-        self.chat_client = ChatClient(self.chat_frame)
+        # Create and initialize chat client with exit callback
+        self.chat_client = ChatClient(self.chat_frame, exit_callback=self.exit_chat)
         self.chat_client.create_ui()
 
         # Connect to server
@@ -875,9 +875,23 @@ class SudokuGUI:
         self.root.protocol("WM_DELETE_WINDOW", self.exit_chat)
 
     def exit_chat(self):
-        """Exit chat and return to game or quit."""
+        """Exit chat and return to game."""
         if hasattr(self, 'chat_client'):
             self.chat_client.disconnect()
+
+        # Hide chat frame
+        if hasattr(self, 'chat_frame'):
+            self.chat_frame.pack_forget()
+            self.chat_frame.destroy()
+
+        # Show game frame again
+        self.main_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Restore window title
+        self.root.title("Sudoku Game")
+
+        # Restore original close handler
+        self.root.protocol("WM_DELETE_WINDOW", self.root.destroy)
 
     def show_solution(self):
         """Show the solution."""

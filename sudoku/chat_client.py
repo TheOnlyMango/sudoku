@@ -11,7 +11,7 @@ from datetime import datetime
 class ChatClient:
     """90s style chat client with Dracula theme."""
 
-    def __init__(self, root, server_host='100.115.233.16', server_port=7331):
+    def __init__(self, root, server_host='100.115.233.16', server_port=7331, exit_callback=None):
         self.root = root
         self.server_host = server_host
         self.server_port = server_port
@@ -19,6 +19,7 @@ class ChatClient:
         self.username = None
         self.running = False
         self.users = set()
+        self.exit_callback = exit_callback
 
         # Dracula colors with 90s hacker twist
         self.BG_COLOR = "#282a36"
@@ -45,15 +46,44 @@ class ChatClient:
         main_frame = tk.Frame(self.root, bg=self.BG_COLOR, padx=10, pady=10)
         main_frame.pack(fill=tk.BOTH, expand=True)
 
-        # Header with 90s ASCII art
+        # Header with 90s ASCII art and ABORT button
+        header_frame = tk.Frame(main_frame, bg=self.BG_COLOR)
+        header_frame.pack(pady=(0, 10), fill=tk.X)
+
+        # ABORT button - red circle with 3D effect in top left
+        abort_btn = tk.Button(
+            header_frame,
+            text="ABORT",
+            command=self._on_abort,
+            font=("Courier", 8, "bold"),
+            bg="#8b0000",  # Dark red
+            fg="#ffffff",
+            activebackground="#ff0000",
+            activeforeground="#ffffff",
+            width=8,
+            height=1,
+            relief=tk.RAISED,
+            bd=4,
+            cursor="hand2"
+        )
+        abort_btn.pack(side=tk.LEFT, padx=5)
+
+        # Add 3D shading effect with hover
+        def on_abort_enter(e):
+            abort_btn.config(bg="#ff0000", relief=tk.RAISED)
+        def on_abort_leave(e):
+            abort_btn.config(bg="#8b0000", relief=tk.RAISED)
+        abort_btn.bind("<Enter>", on_abort_enter)
+        abort_btn.bind("<Leave>", on_abort_leave)
+
         header = tk.Label(
-            main_frame,
+            header_frame,
             text="░▒▓█ SECURE CHAT █▓▒░\n>> ENCRYPTED TUNNEL ESTABLISHED <<",
             font=("Courier", 10, "bold"),
             bg=self.BG_COLOR,
             fg=self.SYSTEM_COLOR
         )
-        header.pack(pady=(0, 10))
+        header.pack(side=tk.LEFT, expand=True)
 
         # Content frame (users + chat)
         content_frame = tk.Frame(main_frame, bg=self.BG_COLOR)
@@ -319,6 +349,13 @@ class ChatClient:
             self.display_message(f">> Connection failed: {e}", "system")
             self.status_label.config(text=">> Connection failed")
             return False
+
+    def _on_abort(self):
+        """Handle ABORT button click."""
+        if self.exit_callback:
+            self.exit_callback()
+        else:
+            self.disconnect()
 
     def disconnect(self):
         """Disconnect from server."""
