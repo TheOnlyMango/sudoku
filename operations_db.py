@@ -225,3 +225,27 @@ class OperationsDB:
             'created_at': result[3],
             'description': result[4]
         }
+
+    def get_file_data(self, post_id: int) -> Optional[str]:
+        """Get base64-encoded file data for a post."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            SELECT file_path FROM posts WHERE id = ?
+        ''', (post_id,))
+
+        result = cursor.fetchone()
+        conn.close()
+
+        if not result or not result[0]:
+            return None
+
+        try:
+            import base64
+            with open(result[0], 'rb') as f:
+                file_data = f.read()
+            return base64.b64encode(file_data).decode('utf-8')
+        except Exception as e:
+            print(f"Error reading file: {e}")
+            return None

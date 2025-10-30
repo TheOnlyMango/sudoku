@@ -274,13 +274,22 @@ class OperationsClient:
                                      height=3, wrap=tk.WORD)
         self.comment_text.pack(fill=tk.BOTH, expand=True)
 
-        # File upload placeholder
+        # File upload
         file_frame = tk.Frame(form_frame, bg=self.PANEL_COLOR)
         file_frame.pack(pady=5, padx=10, fill=tk.X)
+        tk.Label(file_frame, text="FILE:", font=("Courier", 9), bg=self.PANEL_COLOR,
+                 fg=self.TEXT_COLOR, width=12, anchor=tk.W).pack(side=tk.LEFT)
+
+        self.selected_file = None
         self.file_label = tk.Label(file_frame, text="No file selected", font=("Courier", 8),
                                     bg=self.PANEL_COLOR, fg=self.TEXT_COLOR)
-        self.file_label.pack(side=tk.LEFT)
-        # TODO: Add file upload button
+        self.file_label.pack(side=tk.LEFT, padx=5)
+
+        upload_btn = self._create_button(
+            file_frame, "[ BROWSE ]", self._browse_file,
+            bg=self.BUTTON_COLOR, fg=self.TEXT_COLOR, width=10
+        )
+        upload_btn.pack(side=tk.LEFT, padx=5)
 
         # Post button
         post_btn = self._create_button(
@@ -477,15 +486,44 @@ class OperationsClient:
                         self.posts_display.insert(tk.END, f" [{post['created_at']}]\n", "time")
                         # Comment
                         self.posts_display.insert(tk.END, f"{post['comment']}\n", "text")
-                        # Filename if present
+                        # Filename if present with download link
                         if post.get('filename'):
-                            self.posts_display.insert(tk.END, f"[FILE: {post['filename']}]\n", "time")
+                            file_tag = f"file_{post['id']}"
+                            self.posts_display.insert(tk.END, f"📎 FILE: ", "time")
+                            self.posts_display.insert(tk.END, f"{post['filename']}", file_tag)
+                            self.posts_display.insert(tk.END, f" [click to download]\n", "time")
+
+                            # Make filename clickable
+                            self.posts_display.tag_config(file_tag, foreground=self.SECONDARY_COLOR, underline=1)
+                            self.posts_display.tag_bind(file_tag, "<Button-1>",
+                                                        lambda e, p=post: self._download_file(p))
+                            self.posts_display.tag_bind(file_tag, "<Enter>",
+                                                        lambda e, t=file_tag: self.posts_display.config(cursor="hand2"))
+                            self.posts_display.tag_bind(file_tag, "<Leave>",
+                                                        lambda e: self.posts_display.config(cursor=""))
+
                         self.posts_display.insert(tk.END, "─" * 70 + "\n", "time")
 
                 self.posts_display.config(state=tk.DISABLED)
 
         except Exception as e:
             print(f"Error loading posts: {e}")
+
+    def _browse_file(self):
+        """Browse for a file to upload."""
+        filename = filedialog.askopenfilename(
+            title="Select file to upload",
+            filetypes=[("All files", "*.*")]
+        )
+
+        if filename:
+            self.selected_file = filename
+            import os
+            basename = os.path.basename(filename)
+            self.file_label.config(text=f"✓ {basename}", fg=self.SUCCESS_COLOR)
+        else:
+            self.selected_file = None
+            self.file_label.config(text="No file selected", fg=self.TEXT_COLOR)
 
     def _add_post(self):
         """Add a new post to the operation."""
@@ -496,7 +534,28 @@ class OperationsClient:
             return
 
         try:
-            message = f'OP_POST:{self.current_operation}:{comment}:\n'
+            import os
+            import base64
+
+            filename = None
+            file_data = None
+
+            # Read and encode file if selected
+            if self.selected_file:
+                try:
+                    with open(self.selected_file, 'rb') as f:
+                        file_data = base64.b64encode(f.read()).decode('utf-8')
+                    filename = os.path.basename(self.selected_file)
+                except Exception as e:
+                    self._show_message(f"✗ Error reading file: {e}", self.ERROR_COLOR)
+                    return
+
+            # Send post with optional file data
+            if file_data:
+                message = f'OP_POST:{self.current_operation}:{comment}:{filename}:{file_data}\n'
+            else:
+                message = f'OP_POST:{self.current_operation}:{comment}::\n'
+
             self.socket.send(message.encode('utf-8'))
             response = self.socket.recv(1024).decode('utf-8').strip()
 
@@ -507,12 +566,49 @@ class OperationsClient:
                 if success:
                     self._show_message("✓ Post added", self.SUCCESS_COLOR)
                     self.comment_text.delete('1.0', tk.END)
+                    self.selected_file = None
+                    self.file_label.config(text="No file selected", fg=self.TEXT_COLOR)
                     self._load_posts()
                 else:
                     self._show_message(f"✗ Failed to add post", self.ERROR_COLOR)
 
         except Exception as e:
             self._show_message(f"Error: {e}", self.ERROR_COLOR)
+
+    def _download_file(self, post):
+        """Download file from post."""
+        try:
+            import os
+            import base64
+            from tkinter import filedialog
+
+            # Request file data from server
+            self.socket.send(f'OP_FILE:{post["id"]}\n'.encode('utf-8'))
+            response = self.socket.recv(1048576).decode('utf-8').strip()  # 1MB buffer
+
+            if response.startswith('OP_FILE:'):
+                file_data_b64 = response[8:]
+                if file_data_b64 and file_data_b64 != "null":
+                    # Ask where to save
+                    save_path = filedialog.asksaveasfilename(
+                        defaultextension="",
+                        initialfile=post['filename'],
+                        title="Save file as"
+                    )
+
+                    if save_path:
+                        # Decode and save file
+                        file_data = base64.b64decode(file_data_b64)
+                        with open(save_path, 'wb') as f:
+                            f.write(file_data)
+                        self._show_message(f"✓ File saved: {os.path.basename(save_path)}", self.SUCCESS_COLOR)
+                else:
+                    self._show_message("✗ File not found", self.ERROR_COLOR)
+            else:
+                self._show_message("✗ Failed to download file", self.ERROR_COLOR)
+
+        except Exception as e:
+            self._show_message(f"✗ Error: {e}", self.ERROR_COLOR)
 
     def _ask_password(self, op_name):
         """Show password dialog."""

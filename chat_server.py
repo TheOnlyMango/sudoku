@@ -199,13 +199,33 @@ class ChatServer:
                         client_socket.send(f'OP_POSTS:{response}\n'.encode('utf-8'))
 
                     elif data.startswith('OP_POST:'):
-                        # Add post: OP_POST:op_name:comment:filename
-                        parts = data[8:].split(':', 2)
+                        # Add post: OP_POST:op_name:comment:filename:file_data_base64
+                        parts = data[8:].split(':', 4)
                         if len(parts) >= 2:
                             op_name = parts[0]
                             comment = parts[1]
-                            filename = parts[2] if len(parts) > 2 else None
-                            success, msg = self.ops_db.add_post(op_name, username, comment, filename)
+                            filename = parts[2] if len(parts) > 2 and parts[2] else None
+                            file_data_b64 = parts[4] if len(parts) > 4 and parts[4] else None
+
+                            # Save file to disk if provided
+                            file_path = None
+                            if filename and file_data_b64:
+                                import base64
+                                import os
+                                # Create uploads directory if it doesn't exist
+                                os.makedirs('uploads', exist_ok=True)
+                                # Generate unique filename
+                                import time
+                                file_path = f'uploads/{int(time.time())}_{filename}'
+                                try:
+                                    file_data = base64.b64decode(file_data_b64)
+                                    with open(file_path, 'wb') as f:
+                                        f.write(file_data)
+                                except Exception as e:
+                                    print(f"Error saving file: {e}")
+                                    file_path = None
+
+                            success, msg = self.ops_db.add_post(op_name, username, comment, filename, file_path)
                             client_socket.send(f'OP_POST_RESULT:{success}:{msg}\n'.encode('utf-8'))
 
                     elif data.startswith('OP_INFO:'):
@@ -214,6 +234,13 @@ class ChatServer:
                         op_info = self.ops_db.get_operation_info(op_name)
                         response = json.dumps(op_info) if op_info else "null"
                         client_socket.send(f'OP_INFO:{response}\n'.encode('utf-8'))
+
+                    elif data.startswith('OP_FILE:'):
+                        # Download file: OP_FILE:post_id
+                        post_id = data[8:]
+                        file_data_b64 = self.ops_db.get_file_data(int(post_id))
+                        response = file_data_b64 if file_data_b64 else "null"
+                        client_socket.send(f'OP_FILE:{response}\n'.encode('utf-8'))
 
                 except Exception as e:
                     print(f"Error handling message from {username}: {e}")
