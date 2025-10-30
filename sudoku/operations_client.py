@@ -594,7 +594,7 @@ class OperationsClient:
                 print(f"CLIENT DEBUG: Sending without file - op={self.current_operation}, comment_len={len(comment)}")
 
             self.socket.settimeout(10.0)  # Longer timeout for file uploads
-            self.socket.send(message.encode('utf-8'))
+            self.socket.sendall(message.encode('utf-8'))  # Use sendall to ensure all data is sent
             response = self.socket.recv(1024).decode('utf-8').strip()
             self.socket.settimeout(None)
 

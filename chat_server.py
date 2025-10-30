@@ -150,6 +150,7 @@ class ChatServer:
                         break
 
                     buffer += chunk
+                    print(f"DEBUG: Received chunk of {len(chunk)} bytes, buffer now {len(buffer)} bytes")
 
                     # Process complete messages (ending with \n)
                     while '\n' in buffer:
