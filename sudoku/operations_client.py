@@ -411,8 +411,10 @@ class OperationsClient:
 
         try:
             message = f'OP_CREATE:{op_name}:{op_pass}:{op_desc}\n'
+            self.socket.settimeout(5.0)
             self.socket.send(message.encode('utf-8'))
             response = self.socket.recv(1024).decode('utf-8').strip()
+            self.socket.settimeout(None)
 
             if response.startswith('OP_CREATE_RESULT:'):
                 parts = response[17:].split(':', 1)
@@ -428,8 +430,12 @@ class OperationsClient:
                 else:
                     self._show_message(f"✗ {msg}", self.ERROR_COLOR)
 
+        except socket.timeout:
+            self._show_message("Server timeout", self.ERROR_COLOR)
+            self.socket.settimeout(None)
         except Exception as e:
             self._show_message(f"Error: {e}", self.ERROR_COLOR)
+            self.socket.settimeout(None)
 
     def _access_operation(self):
         """Access selected operation with password."""
@@ -452,6 +458,7 @@ class OperationsClient:
         # Verify password
         try:
             message = f'OP_VERIFY:{op["name"]}:{password}\n'
+            self.socket.settimeout(5.0)
             self.socket.send(message.encode('utf-8'))
             response = self.socket.recv(1024).decode('utf-8').strip()
 
@@ -462,6 +469,7 @@ class OperationsClient:
                     # Get operation info
                     self.socket.send(f'OP_INFO:{op["name"]}\n'.encode('utf-8'))
                     response = self.socket.recv(1024).decode('utf-8').strip()
+                    self.socket.settimeout(None)
 
                     op_info = None
                     if response.startswith('OP_INFO:'):
@@ -470,10 +478,15 @@ class OperationsClient:
 
                     self.show_operation_thread(op['name'], op_info)
                 else:
+                    self.socket.settimeout(None)
                     self._show_message("✗ Invalid password", self.ERROR_COLOR)
 
+        except socket.timeout:
+            self._show_message("Server timeout", self.ERROR_COLOR)
+            self.socket.settimeout(None)
         except Exception as e:
             self._show_message(f"Error: {e}", self.ERROR_COLOR)
+            self.socket.settimeout(None)
 
     def _load_posts(self):
         """Load posts for current operation."""
@@ -481,8 +494,10 @@ class OperationsClient:
             return
 
         try:
+            self.socket.settimeout(5.0)
             self.socket.send(f'OP_POSTS:{self.current_operation}\n'.encode('utf-8'))
             response = self.socket.recv(8192).decode('utf-8').strip()
+            self.socket.settimeout(None)
 
             if response.startswith('OP_POSTS:'):
                 data = response[9:]
@@ -520,8 +535,14 @@ class OperationsClient:
 
                 self.posts_display.config(state=tk.DISABLED)
 
+        except socket.timeout:
+            self.posts_display.config(state=tk.NORMAL)
+            self.posts_display.insert(tk.END, "Server timeout loading posts\n", "text")
+            self.posts_display.config(state=tk.DISABLED)
+            self.socket.settimeout(None)
         except Exception as e:
             print(f"Error loading posts: {e}")
+            self.socket.settimeout(None)
 
     def _browse_file(self):
         """Browse for a file to upload."""
@@ -570,8 +591,10 @@ class OperationsClient:
             else:
                 message = f'OP_POST:{self.current_operation}:{comment}::\n'
 
+            self.socket.settimeout(10.0)  # Longer timeout for file uploads
             self.socket.send(message.encode('utf-8'))
             response = self.socket.recv(1024).decode('utf-8').strip()
+            self.socket.settimeout(None)
 
             if response.startswith('OP_POST_RESULT:'):
                 parts = response[15:].split(':', 1)
@@ -586,8 +609,12 @@ class OperationsClient:
                 else:
                     self._show_message(f"✗ Failed to add post", self.ERROR_COLOR)
 
+        except socket.timeout:
+            self._show_message("Server timeout - post may be too large", self.ERROR_COLOR)
+            self.socket.settimeout(None)
         except Exception as e:
             self._show_message(f"Error: {e}", self.ERROR_COLOR)
+            self.socket.settimeout(None)
 
     def _download_file(self, post):
         """Download file from post."""
@@ -597,8 +624,10 @@ class OperationsClient:
             from tkinter import filedialog
 
             # Request file data from server
+            self.socket.settimeout(10.0)
             self.socket.send(f'OP_FILE:{post["id"]}\n'.encode('utf-8'))
             response = self.socket.recv(1048576).decode('utf-8').strip()  # 1MB buffer
+            self.socket.settimeout(None)
 
             if response.startswith('OP_FILE:'):
                 file_data_b64 = response[8:]
@@ -621,8 +650,12 @@ class OperationsClient:
             else:
                 self._show_message("✗ Failed to download file", self.ERROR_COLOR)
 
+        except socket.timeout:
+            self._show_message("Server timeout downloading file", self.ERROR_COLOR)
+            self.socket.settimeout(None)
         except Exception as e:
             self._show_message(f"✗ Error: {e}", self.ERROR_COLOR)
+            self.socket.settimeout(None)
 
     def _ask_password(self, op_name):
         """Show password dialog."""
