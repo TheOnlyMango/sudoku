@@ -77,8 +77,23 @@ class ChatClient:
         abort_btn.bind("<Enter>", on_abort_enter)
         abort_btn.bind("<Leave>", on_abort_leave)
 
-        # OPERATIONS button - purple with cyberpunk style
+        # Header title - pack first before buttons to ensure visibility
+        header = tk.Label(
+            header_frame,
+            text="░▒▓█ SECURE CHAT █▓▒░\n>> ENCRYPTED TUNNEL ESTABLISHED <<",
+            font=("Courier", 10, "bold"),
+            bg=self.BG_COLOR,
+            fg=self.SYSTEM_COLOR
+        )
+        header.pack(side=tk.LEFT, padx=(10, 0))
+
+        # Spacer to push buttons to the right
+        spacer = tk.Frame(header_frame, bg=self.BG_COLOR)
+        spacer.pack(side=tk.LEFT, expand=True, fill=tk.X)
+
+        # OPERATIONS button - purple with cyberpunk style - pack on RIGHT side for visibility
         if self.operations_callback:
+            print("[DEBUG] OPERATIONS button will be created - callback exists")
             ops_btn = tk.Button(
                 header_frame,
                 text="OPERATIONS",
@@ -94,7 +109,7 @@ class ChatClient:
                 bd=4,
                 cursor="hand2"
             )
-            ops_btn.pack(side=tk.LEFT, padx=5)
+            ops_btn.pack(side=tk.RIGHT, padx=5)
 
             # Add hover effect
             def on_ops_enter(e):
@@ -103,15 +118,8 @@ class ChatClient:
                 ops_btn.config(bg="#7b2cbf", fg="#00ff41", relief=tk.RAISED)
             ops_btn.bind("<Enter>", on_ops_enter)
             ops_btn.bind("<Leave>", on_ops_leave)
-
-        header = tk.Label(
-            header_frame,
-            text="░▒▓█ SECURE CHAT █▓▒░\n>> ENCRYPTED TUNNEL ESTABLISHED <<",
-            font=("Courier", 10, "bold"),
-            bg=self.BG_COLOR,
-            fg=self.SYSTEM_COLOR
-        )
-        header.pack(side=tk.LEFT, expand=True)
+        else:
+            print("[DEBUG] OPERATIONS button NOT created - no callback provided")
 
         # Content frame (users + chat)
         content_frame = tk.Frame(main_frame, bg=self.BG_COLOR)

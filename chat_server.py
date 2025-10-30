@@ -123,7 +123,8 @@ class ChatServer:
             self.clients[client_socket] = username
             self.usernames.add(username)
 
-            print(f"[+] {username} connected from {address}")
+            # Log user login with DTG
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] USER LOGIN: {username} from {address[0]}")
 
             # Send welcome message
             client_socket.send(f'WELCOME:{username}\n'.encode('utf-8'))
@@ -150,7 +151,6 @@ class ChatServer:
                         break
 
                     buffer += chunk
-                    print(f"DEBUG: Received chunk of {len(chunk)} bytes, buffer now {len(buffer)} bytes")
 
                     # Process complete messages (ending with \n)
                     while '\n' in buffer:
@@ -164,7 +164,7 @@ class ChatServer:
                         if data.startswith('MSG:'):
                             # Group message
                             message = data[4:]
-                            print(f"[{username}] {message}")
+                            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] CHAT MESSAGE: {username} (message length: {len(message)} chars)")
                             self.broadcast(f'MSG:{username}:{message}', client_socket)
 
                         elif data.startswith('DM:'):
@@ -193,6 +193,7 @@ class ChatServer:
                                 op_password = parts[1]
                                 op_description = parts[2] if len(parts) > 2 else ""
                                 success, msg = self.ops_db.create_operation(op_name, username, op_password, op_description)
+                                print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] OPERATION CREATED: '{op_name}' by {username} - {'SUCCESS' if success else 'FAILED'}")
                                 client_socket.send(f'OP_CREATE_RESULT:{success}:{msg}\n'.encode('utf-8'))
 
                         elif data.startswith('OP_VERIFY:'):
@@ -201,6 +202,7 @@ class ChatServer:
                             if len(parts) == 2:
                                 op_name, op_password = parts
                                 valid = self.ops_db.verify_operation_password(op_name, op_password)
+                                print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] OPERATION ACCESS: '{op_name}' by {username} - {'GRANTED' if valid else 'DENIED'}")
                                 client_socket.send(f'OP_VERIFY_RESULT:{valid}\n'.encode('utf-8'))
 
                         elif data.startswith('OP_POSTS:'):
@@ -219,8 +221,6 @@ class ChatServer:
                                 filename = parts[2] if len(parts) > 2 and parts[2] else None
                                 file_data_b64 = parts[3] if len(parts) > 3 and parts[3] else None
 
-                                print(f"OP_POST: op={op_name}, comment={comment[:50]}, filename={filename}, has_file={bool(file_data_b64)}, file_size={len(file_data_b64) if file_data_b64 else 0}")
-
                                 # Save file to disk if provided
                                 file_path = None
                                 if filename and file_data_b64:
@@ -235,13 +235,16 @@ class ChatServer:
                                         file_data = base64.b64decode(file_data_b64)
                                         with open(file_path, 'wb') as f:
                                             f.write(file_data)
-                                        print(f"File saved: {file_path} ({len(file_data)} bytes)")
+                                        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] FILE UPLOAD: '{filename}' ({len(file_data)} bytes) by {username} to operation '{op_name}'")
                                     except Exception as e:
-                                        print(f"Error saving file: {e}")
+                                        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] ERROR: File upload failed - {str(e)}")
                                         file_path = None
+                                else:
+                                    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] OPERATION POST: {username} posted to '{op_name}' (comment: {len(comment)} chars)")
 
                                 success, msg = self.ops_db.add_post(op_name, username, comment, filename, file_path)
-                                print(f"add_post result: success={success}, msg={msg}")
+                                if not success:
+                                    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] ERROR: Post creation failed - {msg}")
                                 client_socket.send(f'OP_POST_RESULT:{success}:{msg}\n'.encode('utf-8'))
 
                         elif data.startswith('OP_INFO:'):
@@ -254,21 +257,30 @@ class ChatServer:
                         elif data.startswith('OP_FILE:'):
                             # Download file: OP_FILE:post_id
                             post_id = data[8:]
-                            file_data_b64 = self.ops_db.get_file_data(int(post_id))
-                            response = file_data_b64 if file_data_b64 else "null"
+                            try:
+                                file_data_b64 = self.ops_db.get_file_data(int(post_id))
+                                if file_data_b64:
+                                    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] FILE DOWNLOAD: post_id={post_id} by {username} ({len(file_data_b64)} bytes base64)")
+                                    response = file_data_b64
+                                else:
+                                    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] ERROR: File not found for post_id={post_id}")
+                                    response = "null"
+                            except Exception as e:
+                                print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] ERROR: File download failed - {str(e)}")
+                                response = "null"
                             client_socket.send(f'OP_FILE:{response}\n'.encode('utf-8'))
 
                 except Exception as e:
-                    print(f"Error handling message from {username}: {e}")
+                    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] ERROR: Connection error with {username} - {str(e)}")
                     break
 
         except Exception as e:
-            print(f"Error with client {address}: {e}")
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] ERROR: Client connection error from {address[0]} - {str(e)}")
 
         finally:
             self.remove_client(client_socket)
             if username:
-                print(f"[-] {username} disconnected")
+                print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] USER LOGOUT: {username}")
                 self.broadcast(f'LEAVE:{username}')
 
     def remove_client(self, client_socket):
@@ -291,8 +303,8 @@ class ChatServer:
         try:
             self.server_socket.bind((self.host, self.port))
             self.server_socket.listen(5)
-            print(f"[*] Chat server started on {self.host}:{self.port}")
-            print(f"[*] Waiting for connections...")
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] SERVER STARTED: Listening on {self.host}:{self.port}")
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Waiting for connections...")
 
             while self.running:
                 try:
@@ -302,16 +314,17 @@ class ChatServer:
                     thread.start()
                 except Exception as e:
                     if self.running:
-                        print(f"Error accepting connection: {e}")
+                        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] ERROR: Failed to accept connection - {str(e)}")
 
         except Exception as e:
-            print(f"Server error: {e}")
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] FATAL ERROR: Server cannot start - {str(e)}")
 
         finally:
             self.stop()
 
     def stop(self):
         """Stop the chat server."""
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] SERVER STOPPING: Closing all connections...")
         self.running = False
 
         # Close all client connections
@@ -332,7 +345,7 @@ class ChatServer:
         if hasattr(self, 'db'):
             self.db.close()
 
-        print("[*] Server stopped")
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] SERVER STOPPED")
 
 
 def main():
