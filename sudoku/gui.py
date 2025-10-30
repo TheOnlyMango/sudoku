@@ -241,11 +241,11 @@ class SudokuGUI:
         self.root.configure(bg=self.BG_COLOR)
 
         # Main container with reduced padding
-        main_frame = tk.Frame(self.root, bg=self.BG_COLOR, padx=15, pady=15)
-        main_frame.pack()
+        self.main_frame = tk.Frame(self.root, bg=self.BG_COLOR, padx=15, pady=15)
+        self.main_frame.pack()
 
         # Contra-style title with big S and small udoku
-        title_frame = tk.Frame(main_frame, bg=self.BG_COLOR, width=600, height=180)
+        title_frame = tk.Frame(self.main_frame, bg=self.BG_COLOR, width=600, height=180)
         title_frame.pack(pady=(0, 5))
         title_frame.pack_propagate(False)
 
@@ -274,7 +274,7 @@ class SudokuGUI:
 
         # Bottom decorative bar
         bottom_bar = tk.Label(
-            main_frame,
+            self.main_frame,
             text="▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄",
             font=("Courier", 8, "bold"),
             bg=self.BG_COLOR,
@@ -283,12 +283,12 @@ class SudokuGUI:
         bottom_bar.pack(pady=(0, 10))
 
         # Game board
-        self.board_frame = tk.Frame(main_frame, bg=self.BG_COLOR)
+        self.board_frame = tk.Frame(self.main_frame, bg=self.BG_COLOR)
         self.board_frame.pack(pady=10)
         self.create_board()
 
         # Control panel
-        control_frame = tk.Frame(main_frame, bg=self.BG_COLOR)
+        control_frame = tk.Frame(self.main_frame, bg=self.BG_COLOR)
         control_frame.pack(pady=8)
 
         # Difficulty selection with 8-bit style
@@ -392,7 +392,7 @@ class SudokuGUI:
             btn.bind("<Leave>", on_leave)
 
         # Status bar with 8-bit style
-        status_container = tk.Frame(main_frame, bg=self.INITIAL_CELL_COLOR, relief=tk.RIDGE, bd=3)
+        status_container = tk.Frame(self.main_frame, bg=self.INITIAL_CELL_COLOR, relief=tk.RIDGE, bd=3)
         status_container.pack(pady=(15, 5), fill=tk.X)
 
         self.status_var = tk.StringVar(value="▶ Press 'NEW' to start!")
@@ -409,7 +409,7 @@ class SudokuGUI:
         # Instructions with pixel style
         instructions = "━━━ [CLICK] + [1-9] or [0/DEL] ━━━"
         tk.Label(
-            main_frame,
+            self.main_frame,
             text=instructions,
             font=("Courier", 9),
             bg=self.BG_COLOR,
@@ -418,7 +418,7 @@ class SudokuGUI:
 
         # Retro footer
         footer = tk.Label(
-            main_frame,
+            self.main_frame,
             text="░░ INSERT COIN TO CONTINUE ░░",
             font=("Courier", 8),
             bg=self.BG_COLOR,
@@ -848,7 +848,7 @@ class SudokuGUI:
             return
 
         # Hide game elements
-        self.game_frame.pack_forget()
+        self.main_frame.pack_forget()
 
         # Create chat client frame
         self.chat_frame = tk.Frame(self.root, bg=self.BG_COLOR)
@@ -865,7 +865,7 @@ class SudokuGUI:
                                       "Could not connect to chat server.\n\nCheck that server is running.")
             self.chat_frame.pack_forget()
             self.chat_frame.destroy()
-            self.game_frame.pack(fill=tk.BOTH, expand=True, padx=15, pady=15)
+            self.main_frame.pack(fill=tk.BOTH, expand=True)
             return
 
         # Update window title
