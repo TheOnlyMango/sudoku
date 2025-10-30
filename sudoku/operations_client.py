@@ -588,8 +588,10 @@ class OperationsClient:
             # Send post with optional file data
             if file_data:
                 message = f'OP_POST:{self.current_operation}:{comment}:{filename}:{file_data}\n'
+                print(f"CLIENT DEBUG: Sending with file - op={self.current_operation}, comment_len={len(comment)}, filename={filename}, file_data_len={len(file_data)}")
             else:
                 message = f'OP_POST:{self.current_operation}:{comment}::\n'
+                print(f"CLIENT DEBUG: Sending without file - op={self.current_operation}, comment_len={len(comment)}")
 
             self.socket.settimeout(10.0)  # Longer timeout for file uploads
             self.socket.send(message.encode('utf-8'))
