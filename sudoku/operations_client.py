@@ -18,6 +18,7 @@ class OperationsClient:
         self.chat_callback = chat_callback  # Callback to return to chat
         self.current_view = "list"  # list, thread
         self.current_operation = None
+        self.operations_data = {}  # Initialize operations data dict
 
         # Retro Cyberpunk colors
         self.BG_COLOR = "#0a0e27"  # Dark blue-black
@@ -28,6 +29,9 @@ class OperationsClient:
         self.BUTTON_COLOR = "#7b2cbf"  # Purple button
         self.ERROR_COLOR = "#ff006e"  # Pink for errors
         self.SUCCESS_COLOR = "#00ff41"  # Green for success
+
+        # Status indicator label reference
+        self.status_label = None
 
     def create_ui(self):
         """Create the operations interface."""
@@ -149,13 +153,27 @@ class OperationsClient:
                               highlightbackground=self.TEXT_COLOR, highlightthickness=2)
         list_frame.pack(pady=10, fill=tk.BOTH, expand=True)
 
+        # Header with title and status indicator
+        list_header_frame = tk.Frame(list_frame, bg=self.PANEL_COLOR)
+        list_header_frame.pack(pady=5, fill=tk.X)
+
         tk.Label(
-            list_frame,
+            list_header_frame,
             text="[ AVAILABLE OPERATIONS ]",
             font=("Courier", 10, "bold"),
             bg=self.PANEL_COLOR,
             fg=self.TEXT_COLOR
-        ).pack(pady=5)
+        ).pack(side=tk.LEFT, padx=10)
+
+        # Status indicator in top-right
+        self.status_label = tk.Label(
+            list_header_frame,
+            text="",
+            font=("Courier", 8, "bold"),
+            bg=self.PANEL_COLOR,
+            fg=self.TEXT_COLOR
+        )
+        self.status_label.pack(side=tk.RIGHT, padx=10)
 
         # Scrollable list
         list_container = tk.Frame(list_frame, bg=self.PANEL_COLOR)
@@ -186,8 +204,8 @@ class OperationsClient:
         )
         access_btn.pack(pady=10)
 
-        # Load operations
-        self._load_operations()
+        # Load operations after UI is ready (schedule for next event loop iteration)
+        self.root.after(100, self._load_operations)
 
     def show_operation_thread(self, op_name, op_info):
         """Show operation thread/forum page."""
@@ -366,7 +384,13 @@ class OperationsClient:
 
     def _load_operations(self):
         """Load operations list from server."""
+        # Show loading status
+        self._update_status("[ LOADING... ]", self.TEXT_COLOR)
+
         try:
+            # Clear any pending data in socket buffer
+            self._clear_socket_buffer()
+
             self.socket.send(b'OP_LIST:\n')
 
             # Set a timeout to prevent freezing
@@ -389,14 +413,21 @@ class OperationsClient:
                     display = f">> {op['name'].upper():20s} | by {op['creator']:10s} | {op['created_at'][:10]}"
                     self.ops_listbox.insert(tk.END, display)
                     self.operations_data[display] = op
+
+                # Show success status briefly
+                self._update_status("[ REFRESHED ]", self.SUCCESS_COLOR)
+                self.root.after(2000, lambda: self._update_status("", self.TEXT_COLOR))
             else:
+                self._update_status("[ ERROR ]", self.ERROR_COLOR)
                 self._show_message("No response from server", self.ERROR_COLOR)
 
         except socket.timeout:
+            self._update_status("[ ERROR ]", self.ERROR_COLOR)
             self._show_message("Server timeout - is server running?", self.ERROR_COLOR)
             self.socket.settimeout(None)
         except Exception as e:
             print(f"Error loading operations: {e}")
+            self._update_status("[ ERROR ]", self.ERROR_COLOR)
             self._show_message(f"Error: {e}", self.ERROR_COLOR)
 
     def _create_operation(self):
@@ -723,6 +754,30 @@ class OperationsClient:
 
         self.root.wait_window(dialog)
         return result[0]
+
+    def _clear_socket_buffer(self):
+        """Clear any pending data in socket buffer before making a new request."""
+        try:
+            # Set socket to non-blocking mode temporarily
+            self.socket.setblocking(False)
+            # Try to read any pending data
+            while True:
+                try:
+                    data = self.socket.recv(4096)
+                    if not data:
+                        break
+                except:
+                    break
+        except:
+            pass
+        finally:
+            # Restore blocking mode
+            self.socket.setblocking(True)
+
+    def _update_status(self, message, color):
+        """Update the status indicator label."""
+        if self.status_label:
+            self.status_label.config(text=message, fg=color)
 
     def _show_message(self, message, color):
         """Show temporary message."""
