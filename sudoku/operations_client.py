@@ -368,7 +368,15 @@ class OperationsClient:
         """Load operations list from server."""
         try:
             self.socket.send(b'OP_LIST:\n')
+
+            # Set a timeout to prevent freezing
+            self.socket.settimeout(5.0)
+
+            # Receive response with timeout
             response = self.socket.recv(8192).decode('utf-8').strip()
+
+            # Reset to blocking
+            self.socket.settimeout(None)
 
             if response.startswith('OP_LIST:'):
                 data = response[8:]
@@ -381,9 +389,15 @@ class OperationsClient:
                     display = f">> {op['name'].upper():20s} | by {op['creator']:10s} | {op['created_at'][:10]}"
                     self.ops_listbox.insert(tk.END, display)
                     self.operations_data[display] = op
+            else:
+                self._show_message("No response from server", self.ERROR_COLOR)
 
+        except socket.timeout:
+            self._show_message("Server timeout - is server running?", self.ERROR_COLOR)
+            self.socket.settimeout(None)
         except Exception as e:
             print(f"Error loading operations: {e}")
+            self._show_message(f"Error: {e}", self.ERROR_COLOR)
 
     def _create_operation(self):
         """Create new operation."""
