@@ -175,12 +175,9 @@ class OperationsClient:
         )
         self.status_label.pack(side=tk.RIGHT, padx=10)
 
-        # Scrollable list
+        # Scrollable list (no visible scrollbar - mousewheel/touchpad still works)
         list_container = tk.Frame(list_frame, bg=self.PANEL_COLOR)
         list_container.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
-
-        scrollbar = tk.Scrollbar(list_container)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
         self.ops_listbox = tk.Listbox(
             list_container,
@@ -189,13 +186,11 @@ class OperationsClient:
             fg=self.ACCENT_COLOR,
             selectbackground=self.BUTTON_COLOR,
             selectforeground=self.ACCENT_COLOR,
-            yscrollcommand=scrollbar.set,
             relief=tk.FLAT,
             highlightthickness=0,
             bd=0
         )
-        self.ops_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        scrollbar.config(command=self.ops_listbox.yview)
+        self.ops_listbox.pack(fill=tk.BOTH, expand=True)
 
         # Access button
         access_btn = self._create_button(
