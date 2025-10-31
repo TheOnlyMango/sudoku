@@ -45,6 +45,9 @@ Thumbs.db
 chat_messages.db
 chat_config.json
 
+# Authentication
+auth.db
+
 # Operations
 operations.db
 uploads/
