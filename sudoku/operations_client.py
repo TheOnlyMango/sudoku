@@ -195,16 +195,26 @@ class OperationsClient:
         )
         self.ops_listbox.pack(fill=tk.BOTH, expand=True)
 
+        # Button frame for Access and Refresh buttons
+        button_frame = tk.Frame(list_frame, bg=self.PANEL_COLOR)
+        button_frame.pack(pady=10)
+
         # Access button
         access_btn = self._create_button(
-            list_frame, "[ ACCESS OPERATION ]", self._access_operation,
+            button_frame, "[ ACCESS OPERATION ]", self._access_operation,
             bg=self.BUTTON_COLOR, fg=self.TEXT_COLOR
         )
-        access_btn.pack(pady=10)
+        access_btn.pack(side=tk.LEFT, padx=5)
 
-        # Force immediate operations sync when first loading
-        # Clear socket buffer and load operations synchronously
-        self._load_operations()
+        # Refresh button with retro icon
+        refresh_btn = self._create_button(
+            button_frame, "[ ◄► REFRESH ]", self._load_operations,
+            bg=self.SUCCESS_COLOR, fg=self.BG_COLOR
+        )
+        refresh_btn.pack(side=tk.LEFT, padx=5)
+
+        # Force immediate operations sync when first loading (with retry)
+        self.root.after(100, self._load_operations_with_retry)
 
     def show_operation_thread(self, op_name, op_info):
         """Show operation thread/forum page."""
@@ -381,6 +391,17 @@ class OperationsClient:
 
         return btn
 
+    def _load_operations_with_retry(self):
+        """Load operations with retry mechanism (called on initial page load)."""
+        try:
+            # Clear socket buffer more aggressively
+            self._clear_socket_buffer()
+            # Small delay to let socket settle
+            self.root.after(200, self._load_operations)
+        except:
+            # If first attempt fails, just show error
+            self._update_status("[ ERROR ]", self.ERROR_COLOR)
+
     def _load_operations(self):
         """Load operations list from server."""
         # Show loading status
@@ -392,8 +413,8 @@ class OperationsClient:
 
             self.socket.send(b'OP_LIST:\n')
 
-            # Set a timeout to prevent freezing
-            self.socket.settimeout(5.0)
+            # Set a longer timeout for initial load
+            self.socket.settimeout(8.0)
 
             # Receive response with timeout
             response = self.socket.recv(8192).decode('utf-8').strip()

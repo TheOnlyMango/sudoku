@@ -190,10 +190,10 @@ class ChatClient:
         )
         user_label.pack(pady=5)
 
-        # User listbox
+        # User listbox (increased font size)
         self.user_listbox = tk.Listbox(
             user_panel,
-            font=("Courier", 9),
+            font=("Courier", 11),  # Increased from 9 to 11
             bg=self.PANEL_COLOR,
             fg=self.TEXT_COLOR,
             selectbackground=self.BUTTON_COLOR,
@@ -220,10 +220,10 @@ class ChatClient:
         )
         chat_label.pack(pady=5)
 
-        # Chat display - ScrolledText for auto-scroll
+        # Chat display - ScrolledText for auto-scroll (increased font size)
         self.chat_display = scrolledtext.ScrolledText(
             chat_panel,
-            font=("Courier", 9),
+            font=("Courier", 11),  # Increased from 9 to 11
             bg=self.PANEL_COLOR,
             fg=self.TEXT_COLOR,
             insertbackground=self.TEXT_COLOR,
@@ -237,7 +237,7 @@ class ChatClient:
         # Configure text tags for colors (oh-my-zsh terminal style)
         self.chat_display.tag_config("system", foreground=self.SYSTEM_COLOR)
         self.chat_display.tag_config("prompt", foreground=self.PROMPT_COLOR)  # Terminal prompt symbols
-        self.chat_display.tag_config("time", foreground=self.SYSTEM_COLOR)  # Orange for timestamps
+        self.chat_display.tag_config("time", foreground=self.PROMPT_COLOR)  # Same as prompt [@shnet]
         self.chat_display.tag_config("dm", foreground=self.DM_COLOR)
         self.chat_display.tag_config("text", foreground=self.TEXT_COLOR)  # White for message text
 
