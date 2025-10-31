@@ -407,19 +407,8 @@ class ChatClient:
         target_width = 70
 
         if username:
-            # Oh-my-zsh terminal style: ┌─[username@shnet]~$
-            prompt = f"┌─[{username}@shnet]~$ "
-            content = prompt + message
-
-            # Calculate padding to push timestamp to right
-            content_length = len(content)
-            padding_needed = target_width - content_length - len(timestamp_str)
-
-            # Ensure at least 2 spaces before timestamp
-            if padding_needed < 2:
-                padding_needed = 2
-
-            padding = " " * padding_needed
+            # Oh-my-zsh terminal style: ┌─[username@shnet][HH:MM]
+            #                            ~$ message goes here
 
             # Get per-user color and create tag if needed
             user_color = self.get_user_color(username)
@@ -427,14 +416,16 @@ class ChatClient:
             if user_tag not in self.chat_display.tag_names():
                 self.chat_display.tag_config(user_tag, foreground=user_color)
 
-            # Terminal-style prompt
+            # First line: ┌─[username@shnet][HH:MM]
             self.chat_display.insert(tk.END, "┌─[", "prompt")
             self.chat_display.insert(tk.END, f"{username}", user_tag)
             self.chat_display.insert(tk.END, "@shnet", "prompt")
-            self.chat_display.insert(tk.END, "]~$ ", "prompt")
-            self.chat_display.insert(tk.END, message, "text")  # Message in white
-            self.chat_display.insert(tk.END, padding, "text")
-            self.chat_display.insert(tk.END, f"{timestamp_str}\n", "time")
+            self.chat_display.insert(tk.END, "]", "prompt")
+            self.chat_display.insert(tk.END, f"[{timestamp}]\n", "time")
+
+            # Second line: ~$ message
+            self.chat_display.insert(tk.END, "~$ ", "prompt")
+            self.chat_display.insert(tk.END, f"{message}\n", "text")
         else:
             # System message format with retro symbols
             # Add retro prefix: ►►►
