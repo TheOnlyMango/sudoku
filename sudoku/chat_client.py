@@ -42,6 +42,7 @@ class ChatClient:
         self.users = set()
         self.exit_callback = exit_callback
         self.operations_callback = operations_callback
+        self.is_hidden = False  # Track if chat is just hidden (not disconnected)
 
         # Typing indicator state
         self.typing_users = {}  # {username: timestamp}
@@ -515,7 +516,8 @@ class ChatClient:
                     self.update_status("CONNECTION ERROR", 'red')
                 break
 
-        if self.running:
+        if self.running and not self.is_hidden:
+            # Only show disconnect message if we're not just hidden
             self.display_message("SYSTEM: Disconnected from server", "system")
             self.update_status("DISCONNECTED", 'red')
 
@@ -615,6 +617,14 @@ class ChatClient:
             self.exit_callback()
         else:
             self.disconnect()
+
+    def hide(self):
+        """Hide chat (when switching to operations) but keep connection alive."""
+        self.is_hidden = True
+
+    def show(self):
+        """Show chat again (when returning from operations)."""
+        self.is_hidden = False
 
     def disconnect(self):
         """Disconnect from server."""

@@ -879,6 +879,10 @@ class SudokuGUI:
 
     def launch_operations(self):
         """Launch operations wiki interface."""
+        # Mark chat as hidden (keep connection alive in background)
+        if hasattr(self, 'chat_client'):
+            self.chat_client.hide()
+
         # Hide chat frame
         if hasattr(self, 'chat_frame'):
             self.chat_frame.pack_forget()
@@ -906,6 +910,10 @@ class SudokuGUI:
         if hasattr(self, 'ops_frame'):
             self.ops_frame.pack_forget()
             self.ops_frame.destroy()
+
+        # Mark chat as visible again
+        if hasattr(self, 'chat_client'):
+            self.chat_client.show()
 
         # Show chat frame again
         if hasattr(self, 'chat_frame'):
