@@ -293,14 +293,6 @@ class ImprovedChatServer:
                     # Process command
                     self._process_command(client_socket, username, token, data)
 
-                except UnicodeDecodeError as e:
-                    chat_logger.error(f"Decode error from {username}: {e}")
-                    client_socket.send(b'ERROR:Invalid encoding\n')
-                    break
-                except Exception as e:
-                    chat_logger.error(f"Connection error with {username}: {e}")
-                    break
-
         except Exception as e:
             chat_logger.error(f"Client connection error from {address[0]}: {e}")
 
