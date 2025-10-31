@@ -21,6 +21,13 @@ class AuthUI:
         self.db = AuthDB()
         self.auth_window = None
 
+        # Match chat client colors (90s hacker Dracula theme)
+        self.BG_COLOR = "#282a36"
+        self.TEXT_COLOR = "#f8f8f2"
+        self.BUTTON_COLOR = "#bd93f9"
+        self.SUCCESS_COLOR = "#50fa7b"
+        self.ERROR_COLOR = "#ff5555"
+
     def show_auth_screen(self):
         """Display the authentication selection screen."""
         # Create modal window
@@ -28,7 +35,7 @@ class AuthUI:
         self.auth_window.title("SHNet Secure Terminal - Authentication")
         self.auth_window.geometry("400x380")
         self.auth_window.resizable(False, False)
-        self.auth_window.configure(bg='#1e1e1e')
+        self.auth_window.configure(bg=self.BG_COLOR)
 
         # Make it modal
         self.auth_window.transient(self.root)
@@ -50,15 +57,18 @@ class AuthUI:
         self.auth_window.geometry(f"400x380+{x}+{y}")
 
         # Header
-        header_frame = tk.Frame(self.auth_window, bg='#1e1e1e')
+        header_frame = tk.Frame(self.auth_window, bg=self.BG_COLOR)
         header_frame.pack(pady=20)
 
         title = tk.Label(
             header_frame,
-            text="┌─[ SHNet Secure Terminal ]─┐",
-            font=('Courier New', 14, 'bold'),
-            fg='#50fa7b',
-            bg='#1e1e1e'
+            text="╔════════════════════════════════════════╗\n"
+                 "║  ░▒▓█ SECURE AUTH TERMINAL █▓▒░  ║\n"
+                 "╚════════════════════════════════════════╝",
+            font=('Courier', 9, 'bold'),
+            fg=self.BUTTON_COLOR,
+            bg=self.BG_COLOR,
+            justify=tk.CENTER
         )
         title.pack()
 
@@ -67,12 +77,12 @@ class AuthUI:
             text="Authentication Required",
             font=('Courier New', 10),
             fg='#8be9fd',
-            bg='#1e1e1e'
+            bg=self.BG_COLOR
         )
         subtitle.pack(pady=5)
 
         # Button container
-        button_frame = tk.Frame(self.auth_window, bg='#1e1e1e')
+        button_frame = tk.Frame(self.auth_window, bg=self.BG_COLOR)
         button_frame.pack(pady=30)
 
         # Login button
@@ -132,7 +142,7 @@ class AuthUI:
             text="[ Encrypted Connection Established ]",
             font=('Courier New', 8),
             fg='#6272a4',
-            bg='#1e1e1e'
+            bg=self.BG_COLOR
         )
         footer.pack(side=tk.BOTTOM, pady=10)
 
@@ -143,7 +153,7 @@ class AuthUI:
             widget.destroy()
 
         # Header
-        header_frame = tk.Frame(self.auth_window, bg='#1e1e1e')
+        header_frame = tk.Frame(self.auth_window, bg=self.BG_COLOR)
         header_frame.pack(pady=20)
 
         title = tk.Label(
@@ -151,12 +161,12 @@ class AuthUI:
             text="┌─[ LOGIN ]─┐",
             font=('Courier New', 14, 'bold'),
             fg='#50fa7b',
-            bg='#1e1e1e'
+            bg=self.BG_COLOR
         )
         title.pack()
 
         # Form frame
-        form_frame = tk.Frame(self.auth_window, bg='#1e1e1e')
+        form_frame = tk.Frame(self.auth_window, bg=self.BG_COLOR)
         form_frame.pack(pady=20)
 
         # Username
@@ -165,7 +175,7 @@ class AuthUI:
             text="Username:",
             font=('Courier New', 10),
             fg='#f8f8f2',
-            bg='#1e1e1e'
+            bg=self.BG_COLOR
         ).grid(row=0, column=0, sticky='e', padx=10, pady=10)
 
         username_entry = tk.Entry(
@@ -185,7 +195,7 @@ class AuthUI:
             text="Password:",
             font=('Courier New', 10),
             fg='#f8f8f2',
-            bg='#1e1e1e'
+            bg=self.BG_COLOR
         ).grid(row=1, column=0, sticky='e', padx=10, pady=10)
 
         password_entry = tk.Entry(
@@ -205,7 +215,7 @@ class AuthUI:
         ))
 
         # Buttons
-        button_frame = tk.Frame(self.auth_window, bg='#1e1e1e')
+        button_frame = tk.Frame(self.auth_window, bg=self.BG_COLOR)
         button_frame.pack(pady=20)
 
         login_btn = tk.Button(
@@ -241,7 +251,7 @@ class AuthUI:
             widget.destroy()
 
         # Header
-        header_frame = tk.Frame(self.auth_window, bg='#1e1e1e')
+        header_frame = tk.Frame(self.auth_window, bg=self.BG_COLOR)
         header_frame.pack(pady=20)
 
         title = tk.Label(
@@ -249,12 +259,12 @@ class AuthUI:
             text="┌─[ REGISTER ]─┐",
             font=('Courier New', 14, 'bold'),
             fg='#50fa7b',
-            bg='#1e1e1e'
+            bg=self.BG_COLOR
         )
         title.pack()
 
         # Form frame
-        form_frame = tk.Frame(self.auth_window, bg='#1e1e1e')
+        form_frame = tk.Frame(self.auth_window, bg=self.BG_COLOR)
         form_frame.pack(pady=20)
 
         # Username
@@ -263,7 +273,7 @@ class AuthUI:
             text="Username:",
             font=('Courier New', 10),
             fg='#f8f8f2',
-            bg='#1e1e1e'
+            bg=self.BG_COLOR
         ).grid(row=0, column=0, sticky='e', padx=10, pady=10)
 
         username_entry = tk.Entry(
@@ -283,7 +293,7 @@ class AuthUI:
             text="Password:",
             font=('Courier New', 10),
             fg='#f8f8f2',
-            bg='#1e1e1e'
+            bg=self.BG_COLOR
         ).grid(row=1, column=0, sticky='e', padx=10, pady=10)
 
         password_entry = tk.Entry(
@@ -303,7 +313,7 @@ class AuthUI:
             text="Confirm:",
             font=('Courier New', 10),
             fg='#f8f8f2',
-            bg='#1e1e1e'
+            bg=self.BG_COLOR
         ).grid(row=2, column=0, sticky='e', padx=10, pady=10)
 
         confirm_entry = tk.Entry(
@@ -323,7 +333,7 @@ class AuthUI:
         ))
 
         # Buttons
-        button_frame = tk.Frame(self.auth_window, bg='#1e1e1e')
+        button_frame = tk.Frame(self.auth_window, bg=self.BG_COLOR)
         button_frame.pack(pady=20)
 
         register_btn = tk.Button(
