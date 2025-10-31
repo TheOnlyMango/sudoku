@@ -425,9 +425,20 @@ class OperationsClient:
             self._show_message("Server timeout - is server running?", self.ERROR_COLOR)
             self.socket.settimeout(None)
         except Exception as e:
+            error_msg = str(e).lower()
             print(f"Error loading operations: {e}")
             self._update_status("[ ERROR ]", self.ERROR_COLOR)
-            self._show_message(f"Error: {e}", self.ERROR_COLOR)
+
+            # Provide helpful error messages based on error type
+            if "operations.db" in error_msg or "database" in error_msg or "no such table" in error_msg:
+                self._show_message(
+                    "Database not found on server.\nServer may be running on a different machine.\nCreate a new operation to initialize database!",
+                    self.ERROR_COLOR
+                )
+            elif "connection" in error_msg:
+                self._show_message("Connection lost to server", self.ERROR_COLOR)
+            else:
+                self._show_message(f"Error: {e}", self.ERROR_COLOR)
 
     def _create_operation(self):
         """Create new operation."""

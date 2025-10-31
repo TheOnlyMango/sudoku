@@ -219,6 +219,7 @@ class SudokuGUI:
         """
         self.root = root
         self.root.title("Sudoku Game")
+        self.root.geometry("700x600")
         self.root.resizable(False, False)
 
         # Game state

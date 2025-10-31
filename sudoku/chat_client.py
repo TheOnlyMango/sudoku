@@ -43,6 +43,12 @@ class ChatClient:
         self.exit_callback = exit_callback
         self.operations_callback = operations_callback
 
+        # Typing indicator state
+        self.typing_users = {}  # {username: timestamp}
+        self.typing_timer = None
+        self.last_typing_sent = 0
+        self.blink_state = 0  # For blinking dots animation
+
         # Dracula colors with 90s hacker twist
         self.BG_COLOR = "#282a36"
         self.PANEL_COLOR = "#1a1c24"  # Darker for panels
@@ -52,6 +58,20 @@ class ChatClient:
         self.DM_COLOR = "#ff79c6"  # Pink for DMs
         self.INPUT_BG = "#44475a"
         self.BUTTON_COLOR = "#bd93f9"
+
+        # Per-user color palette (90s hacker style)
+        self.USER_COLORS = [
+            "#50fa7b",  # Green
+            "#8be9fd",  # Cyan
+            "#ff79c6",  # Pink
+            "#ffb86c",  # Orange
+            "#bd93f9",  # Purple
+            "#f1fa8c",  # Yellow
+            "#ff5555",  # Red
+            "#6272a4",  # Blue-gray
+            "#44fa7b",  # Lime
+            "#ff6ac1",  # Magenta
+        ]
 
     def create_ui(self):
         """Create the chat interface."""
@@ -223,6 +243,7 @@ class ChatClient:
         )
         self.message_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
         self.message_entry.bind('<Return>', lambda e: self.send_message())
+        self.message_entry.bind('<KeyPress>', self.on_typing)
 
         # Send button
         send_btn = tk.Button(
@@ -260,8 +281,69 @@ class ChatClient:
         # Focus on input
         self.message_entry.focus()
 
+    def get_user_color(self, username):
+        """Get consistent color for a username based on hash.
+
+        Args:
+            username: The username to get color for
+
+        Returns:
+            Hex color string
+        """
+        # Hash the username to get consistent color
+        hash_value = sum(ord(c) for c in username)
+        return self.USER_COLORS[hash_value % len(self.USER_COLORS)]
+
+    def on_typing(self, event):
+        """Handle typing event - send typing notification to server."""
+        if not self.socket or not self.username:
+            return
+
+        # Rate limit: only send every 3 seconds
+        current_time = time.time()
+        if current_time - self.last_typing_sent < 3:
+            return
+
+        try:
+            self.socket.sendall(f"TYPING:{self.username}\n".encode())
+            self.last_typing_sent = current_time
+        except:
+            pass
+
+    def update_typing_display(self):
+        """Update typing indicator with blinking animation."""
+        current_time = time.time()
+
+        # Remove expired typing indicators (>5 seconds old)
+        expired = [user for user, timestamp in self.typing_users.items()
+                   if current_time - timestamp > 5]
+        for user in expired:
+            del self.typing_users[user]
+
+        # Update status bar with typing users
+        if self.typing_users:
+            # Cycle through blink states: 0=".", 1="..", 2="..."
+            self.blink_state = (self.blink_state + 1) % 3
+            dots = "." * (self.blink_state + 1)
+
+            typing_list = list(self.typing_users.keys())
+            if len(typing_list) == 1:
+                status_text = f">> {typing_list[0]} is typing{dots}"
+            elif len(typing_list) == 2:
+                status_text = f">> {typing_list[0]} and {typing_list[1]} are typing{dots}"
+            else:
+                status_text = f">> {len(typing_list)} users are typing{dots}"
+
+            self.status_label.config(text=status_text)
+        else:
+            self.status_label.config(text=">> Connected")
+
+        # Schedule next update
+        if self.running:
+            self.typing_timer = self.root.after(500, self.update_typing_display)
+
     def display_message(self, message, tag="text", username=None):
-        """Display message in chat window.
+        """Display message in chat window with right-aligned timestamp.
 
         Args:
             message: The message text
@@ -271,16 +353,50 @@ class ChatClient:
         self.chat_display.config(state=tk.NORMAL)
         timestamp = datetime.now().strftime("%H:%M")  # Remove seconds
 
-        # Format: <username> message [HH:MM]
+        # Calculate padding for right-aligned timestamp
+        # Target width: 70 characters (fits nicely in 700px window with Courier 9)
+        timestamp_str = f"[{timestamp}]"
+        target_width = 70
+
         if username:
-            # User message format
-            self.chat_display.insert(tk.END, f"<{username}> ", "username")
+            # User message format: <username> message
+            prefix = f"<{username}> "
+            content = prefix + message
+
+            # Calculate padding to push timestamp to right
+            content_length = len(content)
+            padding_needed = target_width - content_length - len(timestamp_str)
+
+            # Ensure at least 2 spaces before timestamp
+            if padding_needed < 2:
+                padding_needed = 2
+
+            padding = " " * padding_needed
+
+            # Get per-user color and create tag if needed
+            user_color = self.get_user_color(username)
+            user_tag = f"user_{username}"
+            if user_tag not in self.chat_display.tag_names():
+                self.chat_display.tag_config(user_tag, foreground=user_color)
+
+            self.chat_display.insert(tk.END, f"<{username}> ", user_tag)
             self.chat_display.insert(tk.END, message, tag)
-            self.chat_display.insert(tk.END, f" [{timestamp}]\n", "time")
+            self.chat_display.insert(tk.END, padding, "text")
+            self.chat_display.insert(tk.END, f"{timestamp_str}\n", "time")
         else:
             # System message format (connections, etc.)
+            content_length = len(message)
+            padding_needed = target_width - content_length - len(timestamp_str)
+
+            # Ensure at least 2 spaces before timestamp
+            if padding_needed < 2:
+                padding_needed = 2
+
+            padding = " " * padding_needed
+
             self.chat_display.insert(tk.END, message, tag)
-            self.chat_display.insert(tk.END, f" [{timestamp}]\n", "time")
+            self.chat_display.insert(tk.END, padding, "text")
+            self.chat_display.insert(tk.END, f"{timestamp_str}\n", "time")
 
         self.chat_display.see(tk.END)
         self.chat_display.config(state=tk.DISABLED)
@@ -393,6 +509,13 @@ class ChatClient:
             # Show ERROR messages in status bar only, not chat window
             self.status_label.config(text=f">> Error: {message[6:]}")
 
+        elif message.startswith('TYPING:'):
+            # Format: TYPING:username
+            username = message[7:]
+            # Don't show our own typing indicator
+            if username != self.username:
+                self.typing_users[username] = time.time()
+
     def connect(self, username):
         """Connect to the chat server."""
         self.username = username
@@ -418,6 +541,9 @@ class ChatClient:
             receive_thread = threading.Thread(target=self.receive_messages)
             receive_thread.daemon = True
             receive_thread.start()
+
+            # Start typing indicator update loop
+            self.update_typing_display()
 
             return True
 

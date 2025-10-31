@@ -284,6 +284,10 @@ class ImprovedChatServer:
             elif data.startswith('OP_FILE:'):
                 self._handle_op_file(client_socket, username, data[8:])
 
+            elif data.startswith('TYPING:'):
+                # Broadcast typing indicator to all clients except sender
+                self.broadcast(f'TYPING:{username}', client_socket)
+
         except Exception as e:
             chat_logger.error(f"Error processing command from {username}: {e}")
             client_socket.send(f'ERROR:{str(e)}\n'.encode('utf-8'))
