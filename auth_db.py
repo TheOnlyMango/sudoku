@@ -139,35 +139,48 @@ class AuthDB:
         """Get inbox summary for user (conversations with unread count)."""
         cursor = self.conn.cursor()
 
-        # Get all conversations (both sent and received)
+        # Get all unique conversation partners
         cursor.execute('''
             SELECT DISTINCT
                 CASE
                     WHEN sender = ? THEN recipient
                     ELSE sender
-                END as other_user,
-                (SELECT COUNT(*) FROM direct_messages
-                 WHERE recipient = ? AND sender = other_user AND is_read = 0) as unread_count,
-                (SELECT message FROM direct_messages
-                 WHERE (sender = ? AND recipient = other_user) OR (sender = other_user AND recipient = ?)
-                 ORDER BY sent_at DESC LIMIT 1) as last_message,
-                (SELECT sent_at FROM direct_messages
-                 WHERE (sender = ? AND recipient = other_user) OR (sender = other_user AND recipient = ?)
-                 ORDER BY sent_at DESC LIMIT 1) as last_time
+                END as other_user
             FROM direct_messages
             WHERE sender = ? OR recipient = ?
-            ORDER BY last_time DESC
-        ''', (username, username, username, username, username, username, username, username))
+        ''', (username, username, username))
 
         conversations = []
         for row in cursor.fetchall():
-            conversations.append({
-                'user': row['other_user'],
-                'unread': row['unread_count'],
-                'preview': row['last_message'][:50] + '...' if len(row['last_message']) > 50 else row['last_message'],
-                'timestamp': row['last_time']
-            })
+            other_user = row['other_user']
 
+            # Get unread count for this conversation
+            cursor.execute('''
+                SELECT COUNT(*) as unread_count
+                FROM direct_messages
+                WHERE recipient = ? AND sender = ? AND is_read = 0
+            ''', (username, other_user))
+            unread_count = cursor.fetchone()['unread_count']
+
+            # Get last message and timestamp
+            cursor.execute('''
+                SELECT message, sent_at
+                FROM direct_messages
+                WHERE (sender = ? AND recipient = ?) OR (sender = ? AND recipient = ?)
+                ORDER BY sent_at DESC LIMIT 1
+            ''', (username, other_user, other_user, username))
+            last_msg = cursor.fetchone()
+
+            if last_msg:
+                conversations.append({
+                    'user': other_user,
+                    'unread': unread_count,
+                    'preview': last_msg['message'][:50] + '...' if len(last_msg['message']) > 50 else last_msg['message'],
+                    'timestamp': last_msg['sent_at']
+                })
+
+        # Sort by timestamp descending
+        conversations.sort(key=lambda x: x['timestamp'], reverse=True)
         return conversations
 
     def get_conversation(self, user1: str, user2: str) -> List[Dict]:

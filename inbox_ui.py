@@ -378,19 +378,19 @@ class InboxUI:
     def new_message(self):
         """Open dialog to send a new message to a user."""
         # Create new message dialog
-        dialog = tk.Toplevel(self.inbox_window)
+        dialog = tk.Toplevel(self.inbox_window if self.inbox_window else self.root)
         dialog.title("New Message")
-        dialog.geometry("400x250")
+        dialog.geometry("400x350")  # Increased from 250 to 350
         dialog.configure(bg=self.BG_COLOR)
         dialog.resizable(False, False)
-        dialog.transient(self.inbox_window)
+        dialog.transient(self.inbox_window if self.inbox_window else self.root)
         dialog.grab_set()
 
         # Center dialog
         dialog.update_idletasks()
         x = (dialog.winfo_screenwidth() // 2) - 200
-        y = (dialog.winfo_screenheight() // 2) - 125
-        dialog.geometry(f"400x250+{x}+{y}")
+        y = (dialog.winfo_screenheight() // 2) - 175  # Adjusted for new height
+        dialog.geometry(f"400x350+{x}+{y}")
 
         # Header
         tk.Label(

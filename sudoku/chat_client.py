@@ -61,6 +61,19 @@ class ChatClient:
         self.last_typing_sent = 0
         self.blink_state = 0  # For blinking dots animation
 
+        # View management
+        self.current_view = 'chat'  # 'chat' or 'inbox'
+        self.chat_view_frame = None
+        self.inbox_view_frame = None
+        self.main_content_container = None
+
+        # Inbox state
+        self.conversations = []
+        self.current_conversation = None
+        self.conv_listbox = None
+        self.inbox_msg_display = None
+        self.inbox_input_entry = None
+
         # Dracula colors with 90s hacker twist
         self.BG_COLOR = "#282a36"
         self.PANEL_COLOR = "#0a0e14"  # Darker for terminal feel with CRT glow
@@ -156,12 +169,40 @@ class ChatClient:
         abort_btn.bind("<Enter>", on_abort_enter)
         abort_btn.bind("<Leave>", on_abort_leave)
 
+        # CHAT button - blue/cyan with cyberpunk style
+        self.chat_btn = tk.Button(
+            header_frame,
+            text="CHAT",
+            command=lambda: self.switch_view('chat'),
+            font=("Courier", 8, "bold"),
+            bg="#00b4d8",  # Cyan blue
+            fg="#00ff41",  # Matrix green
+            activebackground="#00ff41",
+            activeforeground="#00b4d8",
+            width=10,
+            height=1,
+            relief=tk.SUNKEN,  # Start sunken since chat is default
+            bd=4,
+            cursor="hand2"
+        )
+        self.chat_btn.pack(side=tk.RIGHT, padx=5)
+
+        # Add hover effect
+        def on_chat_enter(e):
+            if self.current_view != 'chat':
+                self.chat_btn.config(bg="#00ff41", fg="#00b4d8", relief=tk.RAISED)
+        def on_chat_leave(e):
+            if self.current_view != 'chat':
+                self.chat_btn.config(bg="#00b4d8", fg="#00ff41", relief=tk.RAISED)
+        self.chat_btn.bind("<Enter>", on_chat_enter)
+        self.chat_btn.bind("<Leave>", on_chat_leave)
+
         # INBOX button - pink with cyberpunk style - pack on RIGHT side
         # Store reference so we can hide it for anon users
         self.inbox_btn = tk.Button(
             header_frame,
             text="INBOX",
-            command=self.show_inbox,
+            command=lambda: self.switch_view('inbox'),
             font=("Courier", 8, "bold"),
             bg="#ff006e",  # Hot pink
             fg="#00ff41",  # Matrix green
@@ -177,9 +218,11 @@ class ChatClient:
 
         # Add hover effect
         def on_inbox_enter(e):
-            self.inbox_btn.config(bg="#00ff41", fg="#ff006e", relief=tk.RAISED)
+            if self.current_view != 'inbox':
+                self.inbox_btn.config(bg="#00ff41", fg="#ff006e", relief=tk.RAISED)
         def on_inbox_leave(e):
-            self.inbox_btn.config(bg="#ff006e", fg="#00ff41", relief=tk.RAISED)
+            if self.current_view != 'inbox':
+                self.inbox_btn.config(bg="#ff006e", fg="#00ff41", relief=tk.RAISED)
         self.inbox_btn.bind("<Enter>", on_inbox_enter)
         self.inbox_btn.bind("<Leave>", on_inbox_leave)
 
@@ -209,6 +252,19 @@ class ChatClient:
                 ops_btn.config(bg="#7b2cbf", fg="#00ff41", relief=tk.RAISED)
             ops_btn.bind("<Enter>", on_ops_enter)
             ops_btn.bind("<Leave>", on_ops_leave)
+
+        # Main content container for switchable views
+        self.main_content_container = tk.Frame(main_frame, bg=self.BG_COLOR)
+        self.main_content_container.pack(fill=tk.BOTH, expand=True)
+
+        # Create both views
+        self.create_chat_view()
+        self.create_inbox_view()
+
+        # Start with chat view
+        self.switch_view('chat')
+
+        return  # Skip old content frame creation
 
         # Content frame (users + chat)
         content_frame = tk.Frame(main_frame, bg=self.BG_COLOR)
@@ -351,6 +407,394 @@ class ChatClient:
 
         # Focus on input
         self.message_entry.focus()
+
+    def create_chat_view(self):
+        """Create the chat view (users + messages)."""
+        self.chat_view_frame = tk.Frame(self.main_content_container, bg=self.BG_COLOR)
+
+        # Left panel - User list
+        user_panel = tk.Frame(self.chat_view_frame, bg=self.PANEL_COLOR, relief=tk.RIDGE, bd=3,
+                             highlightbackground=self.BUTTON_COLOR, highlightthickness=2)
+        user_panel.pack(side=tk.LEFT, fill=tk.BOTH, padx=(0, 5))
+
+        user_label = tk.Label(
+            user_panel,
+            text="[ USERS ONLINE ]",
+            font=("Courier", 9, "bold"),
+            bg=self.PANEL_COLOR,
+            fg=self.USER_COLOR
+        )
+        user_label.pack(pady=5)
+
+        # User listbox
+        self.user_listbox = tk.Listbox(
+            user_panel,
+            font=("Courier", 11),
+            bg=self.PANEL_COLOR,
+            fg=self.TEXT_COLOR,
+            selectbackground=self.BUTTON_COLOR,
+            selectforeground=self.BG_COLOR,
+            width=18,
+            height=25,
+            relief=tk.FLAT,
+            highlightthickness=0,
+            bd=0
+        )
+        self.user_listbox.pack(padx=5, pady=5, fill=tk.BOTH, expand=True)
+
+        # Right panel - Chat area
+        chat_panel = tk.Frame(self.chat_view_frame, bg=self.PANEL_COLOR, relief=tk.RIDGE, bd=3,
+                             highlightbackground=self.BUTTON_COLOR, highlightthickness=2)
+        chat_panel.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        chat_label = tk.Label(
+            chat_panel,
+            text="[ GROUP CHAT ]",
+            font=("Courier", 9, "bold"),
+            bg=self.PANEL_COLOR,
+            fg=self.TEXT_COLOR
+        )
+        chat_label.pack(pady=5)
+
+        # Chat display
+        self.chat_display = scrolledtext.ScrolledText(
+            chat_panel,
+            font=("Courier", 11),
+            bg=self.PANEL_COLOR,
+            fg=self.TEXT_COLOR,
+            insertbackground=self.TEXT_COLOR,
+            state=tk.DISABLED,
+            wrap=tk.WORD,
+            relief=tk.FLAT,
+            highlightthickness=0
+        )
+        self.chat_display.pack(padx=5, pady=5, fill=tk.BOTH, expand=True)
+
+        # Configure text tags
+        self.chat_display.tag_config("system", foreground=self.SYSTEM_COLOR)
+        self.chat_display.tag_config("prompt", foreground=self.PROMPT_COLOR)
+        self.chat_display.tag_config("time", foreground=self.PROMPT_COLOR)
+        self.chat_display.tag_config("dm", foreground=self.DM_COLOR)
+        self.chat_display.tag_config("text", foreground=self.TEXT_COLOR)
+
+        # Input frame
+        input_frame = tk.Frame(self.chat_view_frame, bg=self.BG_COLOR)
+        input_frame.pack(fill=tk.X, pady=(10, 0))
+
+        # Terminal-style prompt
+        prompt_label = tk.Label(
+            input_frame,
+            text=">>>",
+            font=("Courier", 12, "bold"),
+            bg=self.BG_COLOR,
+            fg=self.PROMPT_COLOR
+        )
+        prompt_label.pack(side=tk.LEFT, padx=(0, 5))
+
+        # Message input
+        self.message_entry = tk.Entry(
+            input_frame,
+            font=("Courier", 10),
+            bg=self.INPUT_BG,
+            fg=self.TEXT_COLOR,
+            insertbackground=self.TEXT_COLOR,
+            relief=tk.FLAT
+        )
+        self.message_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
+        self.message_entry.bind('<Return>', lambda e: self.send_message())
+        self.message_entry.bind('<KeyPress>', self.on_typing)
+
+        # Send button
+        send_btn = tk.Button(
+            input_frame,
+            text="SEND",
+            command=self.send_message,
+            font=("Courier", 9, "bold"),
+            bg=self.BUTTON_COLOR,
+            fg=self.BG_COLOR,
+            activebackground=self.TEXT_COLOR,
+            relief=tk.RAISED,
+            bd=2
+        )
+        send_btn.pack(side=tk.RIGHT)
+
+    def create_inbox_view(self):
+        """Create the inbox view (conversations + messages)."""
+        self.inbox_view_frame = tk.Frame(self.main_content_container, bg=self.BG_COLOR)
+
+        # Left panel - Conversations list
+        left_frame = tk.Frame(self.inbox_view_frame, bg=self.PANEL_COLOR, relief=tk.RIDGE, bd=3,
+                             highlightbackground=self.BUTTON_COLOR, highlightthickness=2)
+        left_frame.pack(side=tk.LEFT, fill=tk.BOTH, padx=(0, 5))
+        left_frame.config(width=250)
+
+        conv_header = tk.Label(
+            left_frame,
+            text="[ CONVERSATIONS ]",
+            font=("Courier", 9, "bold"),
+            bg=self.PANEL_COLOR,
+            fg="#50fa7b"
+        )
+        conv_header.pack(pady=5)
+
+        # Conversations listbox with scrollbar
+        conv_scroll_frame = tk.Frame(left_frame, bg=self.PANEL_COLOR)
+        conv_scroll_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+
+        conv_scrollbar = tk.Scrollbar(conv_scroll_frame)
+        conv_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        self.conv_listbox = tk.Listbox(
+            conv_scroll_frame,
+            font=("Courier", 9),
+            bg="#1a1f2e",
+            fg=self.TEXT_COLOR,
+            selectbackground="#44475a",
+            selectforeground="#f8f8f2",
+            relief=tk.FLAT,
+            bd=0,
+            highlightthickness=0,
+            yscrollcommand=conv_scrollbar.set
+        )
+        self.conv_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        conv_scrollbar.config(command=self.conv_listbox.yview)
+
+        # Bind selection event
+        self.conv_listbox.bind('<<ListboxSelect>>', self.on_conversation_select)
+
+        # New message button
+        new_msg_btn = tk.Button(
+            left_frame,
+            text="[ NEW MESSAGE ]",
+            command=self.new_inbox_message,
+            font=("Courier", 9, "bold"),
+            bg="#7b2cbf",
+            fg="#00ff41",
+            activebackground="#00ff41",
+            activeforeground="#7b2cbf",
+            relief=tk.RAISED,
+            bd=3,
+            cursor="hand2"
+        )
+        new_msg_btn.pack(pady=5, padx=5, fill=tk.X)
+
+        # Right panel - Message view
+        right_frame = tk.Frame(self.inbox_view_frame, bg=self.PANEL_COLOR, relief=tk.RIDGE, bd=3,
+                              highlightbackground=self.BUTTON_COLOR, highlightthickness=2)
+        right_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
+
+        msg_header = tk.Label(
+            right_frame,
+            text="[ MESSAGE THREAD ]",
+            font=("Courier", 9, "bold"),
+            bg=self.PANEL_COLOR,
+            fg="#50fa7b"
+        )
+        msg_header.pack(pady=5)
+
+        # Message display area
+        self.inbox_msg_display = scrolledtext.ScrolledText(
+            right_frame,
+            font=("Courier", 10),
+            bg="#1a1f2e",
+            fg=self.TEXT_COLOR,
+            state=tk.DISABLED,
+            wrap=tk.WORD,
+            relief=tk.FLAT,
+            highlightthickness=0
+        )
+        self.inbox_msg_display.pack(padx=5, pady=5, fill=tk.BOTH, expand=True)
+
+        # Configure tags for inbox messages
+        self.inbox_msg_display.tag_config("sent", foreground="#8be9fd")  # Cyan for sent
+        self.inbox_msg_display.tag_config("received", foreground="#50fa7b")  # Green for received
+        self.inbox_msg_display.tag_config("time", foreground=self.PROMPT_COLOR)
+
+        # Input area for replies
+        input_frame = tk.Frame(self.inbox_view_frame, bg=self.BG_COLOR)
+        input_frame.pack(fill=tk.X, pady=(10, 0))
+
+        prompt_label = tk.Label(
+            input_frame,
+            text=">>>",
+            font=("Courier", 12, "bold"),
+            bg=self.BG_COLOR,
+            fg=self.PROMPT_COLOR
+        )
+        prompt_label.pack(side=tk.LEFT, padx=(0, 5))
+
+        self.inbox_input_entry = tk.Entry(
+            input_frame,
+            font=("Courier", 10),
+            bg=self.INPUT_BG,
+            fg=self.TEXT_COLOR,
+            insertbackground=self.TEXT_COLOR,
+            relief=tk.FLAT
+        )
+        self.inbox_input_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
+        self.inbox_input_entry.bind('<Return>', lambda e: self.send_inbox_reply())
+
+        send_btn = tk.Button(
+            input_frame,
+            text="SEND",
+            command=self.send_inbox_reply,
+            font=("Courier", 9, "bold"),
+            bg=self.BUTTON_COLOR,
+            fg=self.BG_COLOR,
+            activebackground=self.TEXT_COLOR,
+            relief=tk.RAISED,
+            bd=2
+        )
+        send_btn.pack(side=tk.RIGHT)
+
+    def switch_view(self, view_name):
+        """Switch between chat and inbox views."""
+        self.current_view = view_name
+
+        # Hide both views
+        if self.chat_view_frame:
+            self.chat_view_frame.pack_forget()
+        if self.inbox_view_frame:
+            self.inbox_view_frame.pack_forget()
+
+        # Show the requested view
+        if view_name == 'chat':
+            self.chat_view_frame.pack(fill=tk.BOTH, expand=True)
+            self.chat_btn.config(relief=tk.SUNKEN, bg="#00b4d8", fg="#00ff41")
+            self.inbox_btn.config(relief=tk.RAISED, bg="#ff006e", fg="#00ff41")
+            if self.message_entry:
+                self.message_entry.focus()
+        elif view_name == 'inbox':
+            self.inbox_view_frame.pack(fill=tk.BOTH, expand=True)
+            self.inbox_btn.config(relief=tk.SUNKEN, bg="#ff006e", fg="#00ff41")
+            self.chat_btn.config(relief=tk.RAISED, bg="#00b4d8", fg="#00ff41")
+            # Load inbox when switching to it
+            self.load_inbox()
+
+    def load_inbox(self):
+        """Load inbox conversations from server."""
+        conversations = self.request_inbox()
+
+        if conversations is not None:
+            self.conversations = conversations
+            self.update_conversation_list()
+
+    def update_conversation_list(self):
+        """Update the conversations listbox."""
+        if not self.conv_listbox:
+            return
+
+        self.conv_listbox.delete(0, tk.END)
+
+        for conv in self.conversations:
+            user = conv['user']
+            unread = conv['unread']
+            preview = conv['preview']
+
+            # Format: "★ @username (2)" for unread, "  @username" for read
+            if unread > 0:
+                display = f"★ @{user} ({unread})"
+                self.conv_listbox.insert(tk.END, display)
+                # Set color for unread (will need custom item coloring)
+            else:
+                display = f"  @{user}"
+                self.conv_listbox.insert(tk.END, display)
+
+    def on_conversation_select(self, event):
+        """Handle conversation selection."""
+        if not self.conv_listbox or not self.conversations:
+            return
+
+        selection = self.conv_listbox.curselection()
+        if not selection:
+            return
+
+        idx = selection[0]
+        if idx >= len(self.conversations):
+            return
+
+        conv = self.conversations[idx]
+        other_user = conv['user']
+        self.current_conversation = other_user
+
+        # Request full conversation
+        messages = self.request_conversation(other_user)
+        if messages:
+            self.display_conversation(messages)
+
+        # Mark as read
+        self.mark_conversation_read(other_user)
+
+        # Refresh inbox to update unread count
+        self.load_inbox()
+
+    def display_conversation(self, messages):
+        """Display messages in the inbox message display."""
+        if not self.inbox_msg_display:
+            return
+
+        self.inbox_msg_display.config(state=tk.NORMAL)
+        self.inbox_msg_display.delete(1.0, tk.END)
+
+        for msg in messages:
+            sender = msg['sender']
+            message_text = msg['message']
+            timestamp = msg['timestamp']
+
+            # Format timestamp
+            try:
+                dt = datetime.fromisoformat(timestamp)
+                time_str = dt.strftime('%H:%M')
+            except:
+                time_str = timestamp[:5] if len(timestamp) >= 5 else timestamp
+
+            # Determine if sent or received
+            if sender == self.username:
+                tag = "sent"
+                prefix = "→"
+            else:
+                tag = "received"
+                prefix = "←"
+
+            # Display message
+            self.inbox_msg_display.insert(tk.END, f"[{time_str}] ", "time")
+            self.inbox_msg_display.insert(tk.END, f"{prefix} @{sender}: ", tag)
+            self.inbox_msg_display.insert(tk.END, f"{message_text}\n", "text")
+
+        self.inbox_msg_display.config(state=tk.DISABLED)
+        self.inbox_msg_display.see(tk.END)
+
+    def send_inbox_reply(self):
+        """Send a reply in the current conversation."""
+        if not self.current_conversation or not self.inbox_input_entry:
+            return
+
+        message = self.inbox_input_entry.get().strip()
+        if not message:
+            return
+
+        # Send DM
+        self.send_dm(self.current_conversation, message)
+
+        # Clear input
+        self.inbox_input_entry.delete(0, tk.END)
+
+        # Refresh conversation after a moment
+        self.root.after(500, lambda: self.refresh_current_conversation())
+
+    def refresh_current_conversation(self):
+        """Refresh the currently displayed conversation."""
+        if self.current_conversation:
+            messages = self.request_conversation(self.current_conversation)
+            if messages:
+                self.display_conversation(messages)
+
+    def new_inbox_message(self):
+        """Open dialog to compose new DM."""
+        # Import here to match existing pattern
+        from inbox_ui import InboxUI
+        inbox = InboxUI(self.root, self)
+        inbox.new_message()
 
     def get_user_color(self, username):
         """Get consistent color for a username based on hash.
@@ -794,11 +1238,6 @@ class ChatClient:
             return True
         except:
             return False
-
-    def show_inbox(self):
-        """Show DM inbox."""
-        inbox = InboxUI(self.root, self)
-        inbox.show_inbox()
 
     def _on_abort(self):
         """Handle ABORT button click."""
