@@ -34,10 +34,19 @@ class AuthUI:
         self.auth_window.transient(self.root)
         self.auth_window.grab_set()
 
-        # Center the window
+        # Center relative to parent window
         self.auth_window.update_idletasks()
-        x = (self.auth_window.winfo_screenwidth() // 2) - (400 // 2)
-        y = (self.auth_window.winfo_screenheight() // 2) - (380 // 2)
+        self.root.update_idletasks()
+
+        # Get parent window position and size
+        parent_x = self.root.winfo_x()
+        parent_y = self.root.winfo_y()
+        parent_width = self.root.winfo_width()
+        parent_height = self.root.winfo_height()
+
+        # Calculate center position
+        x = parent_x + (parent_width // 2) - (400 // 2)
+        y = parent_y + (parent_height // 2) - (380 // 2)
         self.auth_window.geometry(f"400x380+{x}+{y}")
 
         # Header

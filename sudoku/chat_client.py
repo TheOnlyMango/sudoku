@@ -426,7 +426,7 @@ class ChatClient:
         )
         user_label.pack(pady=5)
 
-        # User listbox
+        # User listbox - reduced height to fit input box
         self.user_listbox = tk.Listbox(
             user_panel,
             font=("Courier", 11),
@@ -435,12 +435,12 @@ class ChatClient:
             selectbackground=self.BUTTON_COLOR,
             selectforeground=self.BG_COLOR,
             width=18,
-            height=25,
+            height=18,  # Reduced from 25 to 18
             relief=tk.FLAT,
             highlightthickness=0,
             bd=0
         )
-        self.user_listbox.pack(padx=5, pady=5, fill=tk.BOTH, expand=True)
+        self.user_listbox.pack(padx=5, pady=5, fill=tk.Y)
 
         # Right panel - Chat area
         chat_panel = tk.Frame(self.chat_view_frame, bg=self.PANEL_COLOR, relief=tk.RIDGE, bd=3,
@@ -456,7 +456,7 @@ class ChatClient:
         )
         chat_label.pack(pady=5)
 
-        # Chat display
+        # Chat display - fixed height to show input box
         self.chat_display = scrolledtext.ScrolledText(
             chat_panel,
             font=("Courier", 11),
@@ -466,9 +466,10 @@ class ChatClient:
             state=tk.DISABLED,
             wrap=tk.WORD,
             relief=tk.FLAT,
-            highlightthickness=0
+            highlightthickness=0,
+            height=18  # Fixed height instead of expand=True
         )
-        self.chat_display.pack(padx=5, pady=5, fill=tk.BOTH, expand=True)
+        self.chat_display.pack(padx=5, pady=5, fill=tk.BOTH)
 
         # Configure text tags
         self.chat_display.tag_config("system", foreground=self.SYSTEM_COLOR)

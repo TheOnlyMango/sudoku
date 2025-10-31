@@ -227,6 +227,14 @@ class SudokuGUI:
         self.root.geometry("700x850")
         self.root.resizable(False, False)
 
+        # Center window on screen
+        self.root.update_idletasks()
+        screen_width = self.root.winfo_screenwidth()
+        screen_height = self.root.winfo_screenheight()
+        x = (screen_width // 2) - (700 // 2)
+        y = (screen_height // 2) - (850 // 2)
+        self.root.geometry(f"700x850+{x}+{y}")
+
         # Game state
         self.puzzle: Optional[SudokuBoard] = None
         self.current: Optional[SudokuBoard] = None

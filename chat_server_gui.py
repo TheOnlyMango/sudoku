@@ -259,6 +259,15 @@ class ServerGUI:
             self.running = False
             self.server.stop()
 
+            # Wait for server thread to finish (with timeout)
+            if self.server_thread and self.server_thread.is_alive():
+                self.log_message("Waiting for server thread to stop...", '#8be9fd')
+                self.server_thread.join(timeout=3.0)
+                if self.server_thread.is_alive():
+                    self.log_message("WARNING: Server thread did not stop cleanly", '#ffb86c')
+                else:
+                    self.log_message("Server thread stopped", '#50fa7b')
+
             self.log_message("Server shutdown complete", '#50fa7b')
 
         except Exception as e:
