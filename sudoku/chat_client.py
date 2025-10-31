@@ -261,128 +261,9 @@ class ChatClient:
         self.create_chat_view()
         self.create_inbox_view()
 
-        # Start with chat view
-        self.switch_view('chat')
-
-        return  # Skip old content frame creation
-
-        # Content frame (users + chat)
-        content_frame = tk.Frame(main_frame, bg=self.BG_COLOR)
-        content_frame.pack(fill=tk.BOTH, expand=True)
-
-        # Left panel - User list
-        user_panel = tk.Frame(content_frame, bg=self.PANEL_COLOR, relief=tk.RIDGE, bd=3,
-                             highlightbackground=self.BUTTON_COLOR, highlightthickness=2)
-        user_panel.pack(side=tk.LEFT, fill=tk.BOTH, padx=(0, 5))
-
-        user_label = tk.Label(
-            user_panel,
-            text="[ USERS ONLINE ]",
-            font=("Courier", 9, "bold"),
-            bg=self.PANEL_COLOR,
-            fg=self.USER_COLOR
-        )
-        user_label.pack(pady=5)
-
-        # User listbox (increased font size)
-        self.user_listbox = tk.Listbox(
-            user_panel,
-            font=("Courier", 11),  # Increased from 9 to 11
-            bg=self.PANEL_COLOR,
-            fg=self.TEXT_COLOR,
-            selectbackground=self.BUTTON_COLOR,
-            selectforeground=self.BG_COLOR,
-            width=18,
-            height=25,
-            relief=tk.FLAT,
-            highlightthickness=0,
-            bd=0
-        )
-        self.user_listbox.pack(padx=5, pady=5, fill=tk.BOTH, expand=True)
-
-        # Right panel - Chat area
-        chat_panel = tk.Frame(content_frame, bg=self.PANEL_COLOR, relief=tk.RIDGE, bd=3,
-                             highlightbackground=self.BUTTON_COLOR, highlightthickness=2)
-        chat_panel.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-
-        chat_label = tk.Label(
-            chat_panel,
-            text="[ GROUP CHAT ]",
-            font=("Courier", 9, "bold"),
-            bg=self.PANEL_COLOR,
-            fg=self.TEXT_COLOR
-        )
-        chat_label.pack(pady=5)
-
-        # Chat display - ScrolledText for auto-scroll (increased font size)
-        self.chat_display = scrolledtext.ScrolledText(
-            chat_panel,
-            font=("Courier", 11),  # Increased from 9 to 11
-            bg=self.PANEL_COLOR,
-            fg=self.TEXT_COLOR,
-            insertbackground=self.TEXT_COLOR,
-            state=tk.DISABLED,
-            wrap=tk.WORD,
-            relief=tk.FLAT,
-            highlightthickness=0
-        )
-        self.chat_display.pack(padx=5, pady=5, fill=tk.BOTH, expand=True)
-
-        # Configure text tags for colors (oh-my-zsh terminal style)
-        self.chat_display.tag_config("system", foreground=self.SYSTEM_COLOR)
-        self.chat_display.tag_config("prompt", foreground=self.PROMPT_COLOR)  # Terminal prompt symbols
-        self.chat_display.tag_config("time", foreground=self.PROMPT_COLOR)  # Same as prompt [@shnet]
-        self.chat_display.tag_config("dm", foreground=self.DM_COLOR)
-        self.chat_display.tag_config("text", foreground=self.TEXT_COLOR)  # White for message text
-
-        # Input frame
-        input_frame = tk.Frame(main_frame, bg=self.BG_COLOR)
-        input_frame.pack(fill=tk.X, pady=(10, 0))
-
-        # Terminal-style prompt label
-        prompt_label = tk.Label(
-            input_frame,
-            text=">>>",
-            font=("Courier", 12, "bold"),
-            bg=self.BG_COLOR,
-            fg=self.PROMPT_COLOR
-        )
-        prompt_label.pack(side=tk.LEFT, padx=(0, 5))
-
-        # Message input
-        self.message_entry = tk.Entry(
-            input_frame,
-            font=("Courier", 10),
-            bg=self.INPUT_BG,
-            fg=self.TEXT_COLOR,
-            insertbackground=self.TEXT_COLOR,
-            relief=tk.RIDGE,
-            bd=2
-        )
-        self.message_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
-        self.message_entry.bind('<Return>', lambda e: self.send_message())
-        self.message_entry.bind('<KeyPress>', self.on_typing)
-
-        # Send button
-        send_btn = tk.Button(
-            input_frame,
-            text="[ SEND ]",
-            command=self.send_message,
-            font=("Courier", 10, "bold"),
-            bg=self.BUTTON_COLOR,
-            fg=self.BG_COLOR,
-            activebackground=self.DM_COLOR,
-            activeforeground=self.BG_COLOR,
-            relief=tk.RAISED,
-            bd=3,
-            cursor="hand2",
-            width=10
-        )
-        send_btn.pack(side=tk.LEFT)
-
-        # Status indicator with LED circle
+        # Status indicator with LED circle at bottom
         status_frame = tk.Frame(main_frame, bg=self.BG_COLOR)
-        status_frame.pack(fill=tk.X, pady=(10, 0))
+        status_frame.pack(fill=tk.X, pady=(5, 0))
 
         # LED indicator
         self.led_indicator = tk.Label(
@@ -405,8 +286,8 @@ class ChatClient:
         )
         self.status_label.pack(side=tk.LEFT, padx=5)
 
-        # Focus on input
-        self.message_entry.focus()
+        # Start with chat view
+        self.switch_view('chat')
 
     def create_chat_view(self):
         """Create the chat view (users + messages)."""

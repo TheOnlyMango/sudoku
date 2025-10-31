@@ -167,6 +167,9 @@ class ImprovedChatServer:
         is_anon = False
 
         try:
+            # Set socket timeout to prevent hanging on shutdown
+            client_socket.settimeout(2.0)
+
             # Request authentication
             client_socket.send(b'AUTH_REQUIRED:\n')
 
@@ -254,32 +257,41 @@ class ImprovedChatServer:
                     chunk = client_socket.recv(8192).decode('utf-8')
                     if not chunk:
                         break
-
-                    buffer += chunk
-
-                    # Check buffer size limit
-                    if len(buffer) > MAX_BUFFER_SIZE:
-                        security_logger.warning(f"Buffer overflow attempt from {username}")
-                        client_socket.send(b'ERROR:Buffer size exceeded\n')
+                except socket.timeout:
+                    # Timeout is expected - check if server is still running
+                    if not self.running:
                         break
+                    continue  # Keep waiting for messages
+                except Exception as e:
+                    if self.running:
+                        chat_logger.debug(f"Error receiving from {username}: {e}")
+                    break
 
-                    # Process complete messages (ending with \n)
-                    while '\n' in buffer:
-                        line, buffer = buffer.split('\n', 1)
-                        data = line.strip()
+                buffer += chunk
 
-                        if not data:
-                            continue
+                # Check buffer size limit
+                if len(buffer) > MAX_BUFFER_SIZE:
+                    security_logger.warning(f"Buffer overflow attempt from {username}")
+                    client_socket.send(b'ERROR:Buffer size exceeded\n')
+                    break
 
-                        # Verify token for authenticated commands
-                        if ':' in data:
-                            cmd = data.split(':')[0]
-                            if cmd not in ['TOKEN']:  # TOKEN doesn't need verification
-                                # Token should be second part for most commands
-                                pass  # For now, we trust the socket mapping
+                # Process complete messages (ending with \n)
+                while '\n' in buffer:
+                    line, buffer = buffer.split('\n', 1)
+                    data = line.strip()
 
-                        # Process command
-                        self._process_command(client_socket, username, token, data)
+                    if not data:
+                        continue
+
+                    # Verify token for authenticated commands
+                    if ':' in data:
+                        cmd = data.split(':')[0]
+                        if cmd not in ['TOKEN']:  # TOKEN doesn't need verification
+                            # Token should be second part for most commands
+                            pass  # For now, we trust the socket mapping
+
+                    # Process command
+                    self._process_command(client_socket, username, token, data)
 
                 except UnicodeDecodeError as e:
                     chat_logger.error(f"Decode error from {username}: {e}")
@@ -580,9 +592,55 @@ class ImprovedChatServer:
         finally:
             self.stop()
 
+    def check_active_connections(self):
+        """Check and return list of active client connections."""
+        active_clients = []
+        for client_socket, (username, _, is_anon) in list(self.clients.items()):
+            try:
+                # Check if socket is still alive by peeking at receive buffer
+                client_socket.setblocking(False)
+                try:
+                    data = client_socket.recv(1, socket.MSG_PEEK)
+                    # Socket alive (has data or would block)
+                    active_clients.append(username)
+                except BlockingIOError:
+                    # Socket alive, no data available (expected for idle connection)
+                    active_clients.append(username)
+                except:
+                    # Socket dead or error
+                    pass
+            except:
+                # Error checking socket
+                pass
+            finally:
+                try:
+                    client_socket.setblocking(True)
+                except:
+                    pass
+
+        return active_clients
+
     def stop(self):
         """Stop the chat server and archive chat history."""
-        chat_logger.info("SERVER STOPPING: Archiving chat session...")
+        chat_logger.info("SERVER STOPPING: Checking active connections...")
+
+        # Check for active connections
+        active_clients = self.check_active_connections()
+
+        if active_clients:
+            chat_logger.warning(f"═══ {len(active_clients)} CLIENT(S) STILL CONNECTED ═══")
+            for username in active_clients:
+                chat_logger.warning(f"  → {username}")
+            chat_logger.info("Sending shutdown notification to clients...")
+
+            # Notify clients of shutdown
+            self.broadcast("SERVER_SHUTDOWN:Server is shutting down")
+            import time
+            time.sleep(0.2)  # Brief delay for message delivery
+        else:
+            chat_logger.info("No active clients connected")
+
+        chat_logger.info("Archiving chat session...")
 
         # Archive current chat session
         try:
@@ -594,8 +652,10 @@ class ImprovedChatServer:
         self.running = False
 
         # Close all client connections
+        chat_logger.info("Closing client connections...")
         for client_socket in list(self.clients.keys()):
             try:
+                client_socket.shutdown(socket.SHUT_RDWR)
                 client_socket.close()
             except Exception:
                 pass
