@@ -227,7 +227,10 @@ class ImprovedChatServer:
 
             # Send user list with anon flags (format: user1:0,user2:1,...)
             user_list = ','.join(f'{u}:{int(a)}' for u, _, a in self.clients.values())
+            # Send to everyone including the new joiner
             self.broadcast(f'USERLIST:{user_list}')
+            # Also send to the new joiner since broadcast excludes sender
+            client_socket.send(f'USERLIST:{user_list}\n'.encode('utf-8'))
 
             # Send chat history for this session
             history = self.auth_db.get_chat_history(self.session_id)
