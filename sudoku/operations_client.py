@@ -712,11 +712,20 @@ class OperationsClient:
     def _ask_password(self, op_name):
         """Show password dialog."""
         dialog = tk.Toplevel(self.root)
-        dialog.title(f"Access {op_name}")
+        dialog.title(f"◆ Access {op_name} ◆")
         dialog.configure(bg=self.BG_COLOR)
-        dialog.geometry("350x150")
+        dialog.geometry("400x200")  # Increased height to show button
         dialog.resizable(False, False)
         dialog.grab_set()
+
+        # Retro-style header
+        tk.Label(
+            dialog,
+            text="▼▼▼ ACCESSING MAINFRAME ▼▼▼",
+            font=("Courier", 9, "bold"),
+            bg=self.BG_COLOR,
+            fg=self.ERROR_COLOR
+        ).pack(pady=(10, 5))
 
         tk.Label(
             dialog,
@@ -724,7 +733,7 @@ class OperationsClient:
             font=("Courier", 10, "bold"),
             bg=self.BG_COLOR,
             fg=self.ACCENT_COLOR
-        ).pack(pady=20)
+        ).pack(pady=10)
 
         pass_entry = tk.Entry(
             dialog,
@@ -760,7 +769,7 @@ class OperationsClient:
             relief=tk.RAISED,
             bd=3
         )
-        btn.pack(pady=10)
+        btn.pack(pady=15)  # Increased padding to ensure visibility
 
         self.root.wait_window(dialog)
         return result[0]

@@ -242,13 +242,13 @@ class SudokuGUI:
         # Set window background
         self.root.configure(bg=self.BG_COLOR)
 
-        # Main container with reduced padding
-        self.main_frame = tk.Frame(self.root, bg=self.BG_COLOR, padx=15, pady=15)
+        # Main container with reduced padding to prevent clipping
+        self.main_frame = tk.Frame(self.root, bg=self.BG_COLOR, padx=8, pady=8)
         self.main_frame.pack()
 
-        # Contra-style title with big S and small udoku
-        title_frame = tk.Frame(self.main_frame, bg=self.BG_COLOR, width=600, height=180)
-        title_frame.pack(pady=(0, 5))
+        # Contra-style title with big S and small udoku (reduced height)
+        title_frame = tk.Frame(self.main_frame, bg=self.BG_COLOR, width=600, height=120)
+        title_frame.pack(pady=(0, 3))
         title_frame.pack_propagate(False)
 
         # Top decorative bar
@@ -282,16 +282,16 @@ class SudokuGUI:
             bg=self.BG_COLOR,
             fg="#FF0000"  # Contra red
         )
-        bottom_bar.pack(pady=(0, 10))
+        bottom_bar.pack(pady=(0, 5))
 
         # Game board
         self.board_frame = tk.Frame(self.main_frame, bg=self.BG_COLOR)
-        self.board_frame.pack(pady=10)
+        self.board_frame.pack(pady=5)
         self.create_board()
 
         # Control panel
         control_frame = tk.Frame(self.main_frame, bg=self.BG_COLOR)
-        control_frame.pack(pady=8)
+        control_frame.pack(pady=5)
 
         # Difficulty selection with 8-bit style
         difficulty_frame = tk.Frame(control_frame, bg=self.BG_COLOR, relief=tk.RIDGE, bd=3,

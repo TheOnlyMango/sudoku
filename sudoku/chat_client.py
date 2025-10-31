@@ -51,13 +51,14 @@ class ChatClient:
 
         # Dracula colors with 90s hacker twist
         self.BG_COLOR = "#282a36"
-        self.PANEL_COLOR = "#1a1c24"  # Darker for panels
-        self.TEXT_COLOR = "#50fa7b"  # Green terminal text
+        self.PANEL_COLOR = "#0a0e14"  # Darker for terminal feel with CRT glow
+        self.TEXT_COLOR = "#f8f8f2"  # White/light gray for message text (terminal style)
         self.USER_COLOR = "#8be9fd"  # Cyan for usernames
         self.SYSTEM_COLOR = "#ffb86c"  # Orange for system messages
         self.DM_COLOR = "#ff79c6"  # Pink for DMs
-        self.INPUT_BG = "#44475a"
+        self.INPUT_BG = "#1a1f2e"  # Darker input with subtle glow
         self.BUTTON_COLOR = "#bd93f9"
+        self.PROMPT_COLOR = "#6272a4"  # Muted blue for prompt symbols
 
         # Per-user color palette (90s hacker style)
         self.USER_COLORS = [
@@ -87,6 +88,19 @@ class ChatClient:
         # Main container
         main_frame = tk.Frame(self.root, bg=self.BG_COLOR, padx=10, pady=10)
         main_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Retro ASCII art title bar
+        title_bar = tk.Label(
+            main_frame,
+            text="╔═══════════════════════════════════════════════════════════╗\n"
+                 "║  ░▒▓█ S H N E T  S E C U R E  T E R M I N A L █▓▒░  ║\n"
+                 "╚═══════════════════════════════════════════════════════════╝",
+            font=("Courier", 8, "bold"),
+            bg=self.BG_COLOR,
+            fg=self.BUTTON_COLOR,
+            justify=tk.CENTER
+        )
+        title_bar.pack(pady=(0, 5))
 
         # Header with 90s ASCII art and buttons
         header_frame = tk.Frame(main_frame, bg=self.BG_COLOR)
@@ -220,16 +234,26 @@ class ChatClient:
         )
         self.chat_display.pack(padx=5, pady=5, fill=tk.BOTH, expand=True)
 
-        # Configure text tags for colors
+        # Configure text tags for colors (oh-my-zsh terminal style)
         self.chat_display.tag_config("system", foreground=self.SYSTEM_COLOR)
-        self.chat_display.tag_config("username", foreground=self.TEXT_COLOR)  # Hacker green for usernames
-        self.chat_display.tag_config("time", foreground=self.SYSTEM_COLOR)  # Yellow for timestamps
+        self.chat_display.tag_config("prompt", foreground=self.PROMPT_COLOR)  # Terminal prompt symbols
+        self.chat_display.tag_config("time", foreground=self.SYSTEM_COLOR)  # Orange for timestamps
         self.chat_display.tag_config("dm", foreground=self.DM_COLOR)
-        self.chat_display.tag_config("text", foreground=self.TEXT_COLOR)
+        self.chat_display.tag_config("text", foreground=self.TEXT_COLOR)  # White for message text
 
         # Input frame
         input_frame = tk.Frame(main_frame, bg=self.BG_COLOR)
         input_frame.pack(fill=tk.X, pady=(10, 0))
+
+        # Terminal-style prompt label
+        prompt_label = tk.Label(
+            input_frame,
+            text="$",
+            font=("Courier", 12, "bold"),
+            bg=self.BG_COLOR,
+            fg=self.PROMPT_COLOR
+        )
+        prompt_label.pack(side=tk.LEFT, padx=(0, 5))
 
         # Message input
         self.message_entry = tk.Entry(
@@ -262,21 +286,30 @@ class ChatClient:
         )
         send_btn.pack(side=tk.LEFT)
 
-        # Status bar
-        status_frame = tk.Frame(main_frame, bg=self.INPUT_BG, relief=tk.RIDGE, bd=2)
+        # Status indicator with LED circle
+        status_frame = tk.Frame(main_frame, bg=self.BG_COLOR)
         status_frame.pack(fill=tk.X, pady=(10, 0))
 
+        # LED indicator
+        self.led_indicator = tk.Label(
+            status_frame,
+            text="●",
+            font=("Courier", 16, "bold"),
+            bg=self.BG_COLOR,
+            fg="#ffb86c"  # Yellow for connecting
+        )
+        self.led_indicator.pack(side=tk.LEFT, padx=5)
+
+        # Status text
         self.status_label = tk.Label(
             status_frame,
-            text=">> Connecting...",
-            font=("Courier", 8),
-            bg=self.INPUT_BG,
+            text="CONNECTING...",
+            font=("Courier", 9, "bold"),
+            bg=self.BG_COLOR,
             fg=self.SYSTEM_COLOR,
-            anchor=tk.W,
-            padx=5,
-            pady=3
+            anchor=tk.W
         )
-        self.status_label.pack(fill=tk.X)
+        self.status_label.pack(side=tk.LEFT, padx=5)
 
         # Focus on input
         self.message_entry.focus()
@@ -293,6 +326,21 @@ class ChatClient:
         # Hash the username to get consistent color
         hash_value = sum(ord(c) for c in username)
         return self.USER_COLORS[hash_value % len(self.USER_COLORS)]
+
+    def update_status(self, text, led_color):
+        """Update status text and LED indicator.
+
+        Args:
+            text: Status text to display
+            led_color: LED color - 'red', 'yellow', or 'green'
+        """
+        led_colors = {
+            'red': '#ff5555',
+            'yellow': '#ffb86c',
+            'green': '#50fa7b'
+        }
+        self.led_indicator.config(fg=led_colors.get(led_color, '#ffb86c'))
+        self.status_label.config(text=text)
 
     def on_typing(self, event):
         """Handle typing event - send typing notification to server."""
@@ -328,15 +376,15 @@ class ChatClient:
 
             typing_list = list(self.typing_users.keys())
             if len(typing_list) == 1:
-                status_text = f">> {typing_list[0]} is typing{dots}"
+                status_text = f"{typing_list[0]} IS TYPING{dots}"
             elif len(typing_list) == 2:
-                status_text = f">> {typing_list[0]} and {typing_list[1]} are typing{dots}"
+                status_text = f"{typing_list[0]} AND {typing_list[1]} ARE TYPING{dots}"
             else:
-                status_text = f">> {len(typing_list)} users are typing{dots}"
+                status_text = f"{len(typing_list)} USERS ARE TYPING{dots}"
 
-            self.status_label.config(text=status_text)
+            self.update_status(status_text, 'yellow')
         else:
-            self.status_label.config(text=">> Connected")
+            self.update_status("CONNECTED", 'green')
 
         # Schedule next update
         if self.running:
@@ -359,9 +407,9 @@ class ChatClient:
         target_width = 70
 
         if username:
-            # User message format: <username> message
-            prefix = f"<{username}> "
-            content = prefix + message
+            # Oh-my-zsh terminal style: ┌─[username@shnet]~$
+            prompt = f"┌─[{username}@shnet]~$ "
+            content = prompt + message
 
             # Calculate padding to push timestamp to right
             content_length = len(content)
@@ -379,13 +427,20 @@ class ChatClient:
             if user_tag not in self.chat_display.tag_names():
                 self.chat_display.tag_config(user_tag, foreground=user_color)
 
-            self.chat_display.insert(tk.END, f"<{username}> ", user_tag)
-            self.chat_display.insert(tk.END, message, tag)
+            # Terminal-style prompt
+            self.chat_display.insert(tk.END, "┌─[", "prompt")
+            self.chat_display.insert(tk.END, f"{username}", user_tag)
+            self.chat_display.insert(tk.END, "@shnet", "prompt")
+            self.chat_display.insert(tk.END, "]~$ ", "prompt")
+            self.chat_display.insert(tk.END, message, "text")  # Message in white
             self.chat_display.insert(tk.END, padding, "text")
             self.chat_display.insert(tk.END, f"{timestamp_str}\n", "time")
         else:
-            # System message format (connections, etc.)
-            content_length = len(message)
+            # System message format with retro symbols
+            # Add retro prefix: ►►►
+            prefix = "►►► "
+            content = prefix + message
+            content_length = len(content)
             padding_needed = target_width - content_length - len(timestamp_str)
 
             # Ensure at least 2 spaces before timestamp
@@ -394,6 +449,7 @@ class ChatClient:
 
             padding = " " * padding_needed
 
+            self.chat_display.insert(tk.END, "►►► ", "prompt")
             self.chat_display.insert(tk.END, message, tag)
             self.chat_display.insert(tk.END, padding, "text")
             self.chat_display.insert(tk.END, f"{timestamp_str}\n", "time")
@@ -455,18 +511,18 @@ class ChatClient:
             except Exception as e:
                 if self.running:
                     # Show connection errors in status bar only, not chat window
-                    self.status_label.config(text=f">> Connection error")
+                    self.update_status("CONNECTION ERROR", 'red')
                 break
 
         if self.running:
-            self.display_message(">> SYSTEM: Disconnected from server", "system")
-            self.status_label.config(text=">> Disconnected")
+            self.display_message("SYSTEM: Disconnected from server", "system")
+            self.update_status("DISCONNECTED", 'red')
 
     def process_message(self, message):
         """Process incoming message from server."""
         if message.startswith('WELCOME:'):
             # Don't show in chat, only update status bar
-            self.status_label.config(text=f">> Connected as {self.username}")
+            self.update_status(f"CONNECTED AS {self.username.upper()}", 'green')
 
         elif message.startswith('USERLIST:'):
             users = message[9:].split(',')
@@ -474,11 +530,11 @@ class ChatClient:
 
         elif message.startswith('JOIN:'):
             username = message[5:]
-            self.display_message(f">> SYSTEM: {username} has joined", "system")
+            self.display_message(f"SYSTEM: {username} has joined", "system")
 
         elif message.startswith('LEAVE:'):
             username = message[6:]
-            self.display_message(f">> SYSTEM: {username} has left", "system")
+            self.display_message(f"SYSTEM: {username} has left", "system")
 
         elif message.startswith('MSG:'):
             # Format: MSG:username:message
@@ -503,11 +559,11 @@ class ChatClient:
 
         elif message.startswith('INFO:'):
             # Show INFO messages in status bar, not chat window
-            self.status_label.config(text=f">> {message[5:]}")
+            self.update_status(message[5:].upper(), 'yellow')
 
         elif message.startswith('ERROR:'):
             # Show ERROR messages in status bar only, not chat window
-            self.status_label.config(text=f">> Error: {message[6:]}")
+            self.update_status(f"ERROR: {message[6:].upper()}", 'red')
 
         elif message.startswith('TYPING:'):
             # Format: TYPING:username
@@ -549,7 +605,7 @@ class ChatClient:
 
         except Exception as e:
             # Show connection error in status bar only
-            self.status_label.config(text=f">> Connection failed: {e}")
+            self.update_status(f"CONNECTION FAILED", 'red')
             return False
 
     def _on_abort(self):
