@@ -376,8 +376,9 @@ class AuthUI:
         success, message = self.db.register_user(username, password, is_anon=False)
 
         if success:
-            messagebox.showinfo("Success", "Registration successful! You can now log in.")
-            self.show_login_form()
+            # Auto-login after successful registration
+            self.auth_window.destroy()
+            self.on_auth_success(username, password, False)
         else:
             messagebox.showerror("Registration Failed", message)
 

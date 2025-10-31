@@ -161,51 +161,88 @@ class ImprovedChatServer:
         return False
 
     def handle_client(self, client_socket: socket.socket, address: Tuple):
-        """Handle individual client connection."""
+        """Handle individual client connection with authentication."""
         username = None
         token = None
+        is_anon = False
 
         try:
-            # Get username
-            client_socket.send(b'USERNAME:\n')
-            username_response = client_socket.recv(1024).decode('utf-8').strip()
+            # Request authentication
+            client_socket.send(b'AUTH_REQUIRED:\n')
 
-            if not username_response:
+            # Wait for auth response: AUTH:username:password or AUTH_ANON:username
+            auth_response = client_socket.recv(1024).decode('utf-8').strip()
+
+            if not auth_response:
                 return
 
-            username = username_response
-
-            # Check if username is taken
-            existing_usernames = {u for u, _, _ in self.clients.values()}
-            while username in existing_usernames:
-                client_socket.send(b'USERNAME_TAKEN:\n')
-                username = client_socket.recv(1024).decode('utf-8').strip()
-                if not username:
+            if auth_response.startswith('AUTH:'):
+                # Standard authentication
+                parts = auth_response[5:].split(':', 1)
+                if len(parts) != 2:
+                    client_socket.send(b'AUTH_FAILED:Invalid format\n')
                     return
+
+                username, password = parts
+
+                # Verify credentials
+                if not self.auth_db.authenticate_user(username, password):
+                    chat_logger.warning(f"AUTH FAILED: {username} from {address[0]}")
+                    client_socket.send(b'AUTH_FAILED:Invalid credentials\n')
+                    return
+
+                is_anon = False
+                chat_logger.info(f"AUTH SUCCESS: {username} from {address[0]}")
+
+            elif auth_response.startswith('AUTH_ANON:'):
+                # Anonymous authentication
+                username = auth_response[10:]
+
+                # Verify this is registered as an anonymous user
+                if not self.auth_db.user_exists(username) or not self.auth_db.is_anon_user(username):
+                    client_socket.send(b'AUTH_FAILED:Invalid anonymous user\n')
+                    return
+
+                is_anon = True
+                chat_logger.info(f"AUTH SUCCESS (ANON): {username} from {address[0]}")
+
+            else:
+                client_socket.send(b'AUTH_FAILED:Unknown auth method\n')
+                return
+
+            # Check if username already connected
+            existing_usernames = {u for u, _, _ in self.clients.values()}
+            if username in existing_usernames:
+                client_socket.send(b'AUTH_FAILED:Already connected\n')
+                return
 
             # Generate authentication token
             token = self.token_manager.generate_token(username)
 
-            # Add client (is_anon = False for now, will be updated with auth system)
-            self.clients[client_socket] = (username, token, False)
+            # Add client
+            self.clients[client_socket] = (username, token, is_anon)
 
-            chat_logger.info(f"USER LOGIN: {username} from {address[0]}")
+            # Send welcome with token and anon status
+            client_socket.send(f'WELCOME:{username}:{token}:{is_anon}\n'.encode('utf-8'))
 
-            # Send welcome with token
-            client_socket.send(f'WELCOME:{username}:{token}\n'.encode('utf-8'))
-
-            # Send user list
-            user_list = ','.join(existing_usernames | {username})
+            # Send user list with anon flags (format: user1:0,user2:1,...)
+            user_list = ','.join(f'{u}:{int(a)}' for u, _, a in self.clients.values())
             self.broadcast(f'USERLIST:{user_list}')
 
-            # Send offline messages
-            offline_msgs = self.get_offline_messages(username)
-            if offline_msgs:
-                for sender, msg, timestamp in offline_msgs:
-                    client_socket.send(f'OFFLINE:{sender}:{timestamp}:{msg}\n'.encode('utf-8'))
+            # Send chat history for this session
+            history = self.auth_db.get_chat_history(self.session_id)
+            for msg in history:
+                client_socket.send(f'HISTORY:{msg["username"]}:{msg["timestamp"]}:{msg["message"]}\n'.encode('utf-8'))
 
-            # Announce join
-            self.broadcast(f'JOIN:{username}', client_socket)
+            # Send offline messages (not for anon users)
+            if not is_anon:
+                offline_msgs = self.get_offline_messages(username)
+                if offline_msgs:
+                    for sender, msg, timestamp in offline_msgs:
+                        client_socket.send(f'OFFLINE:{sender}:{timestamp}:{msg}\n'.encode('utf-8'))
+
+            # Announce join with anon flag
+            self.broadcast(f'JOIN:{username}:{int(is_anon)}', client_socket)
 
             # Handle messages
             buffer = ""
