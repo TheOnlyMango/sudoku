@@ -5,16 +5,37 @@ from tkinter import scrolledtext, messagebox
 import socket
 import threading
 import time
+import sys
+import os
 from datetime import datetime
+
+# Add parent directory to path to import config reader
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from chat_config_reader import get_config
 
 
 class ChatClient:
     """90s style chat client with Dracula theme."""
 
-    def __init__(self, root, server_host='100.115.233.16', server_port=7331, exit_callback=None, operations_callback=None):
+    def __init__(self, root, server_host=None, server_port=None, exit_callback=None, operations_callback=None):
+        """Initialize chat client.
+
+        Args:
+            root: Tkinter root window
+            server_host: Server address (None = read from config)
+            server_port: Server port (None = read from config)
+            exit_callback: Callback when exiting chat
+            operations_callback: Callback to switch to operations view
+        """
         self.root = root
-        self.server_host = server_host
-        self.server_port = server_port
+
+        # Load config
+        config = get_config()
+        config_host, config_port = config.get_client_config()
+
+        # Use provided values or config values
+        self.server_host = server_host if server_host is not None else config_host
+        self.server_port = server_port if server_port is not None else config_port
         self.socket = None
         self.username = None
         self.running = False
@@ -47,7 +68,7 @@ class ChatClient:
         main_frame = tk.Frame(self.root, bg=self.BG_COLOR, padx=10, pady=10)
         main_frame.pack(fill=tk.BOTH, expand=True)
 
-        # Header with 90s ASCII art and ABORT button
+        # Header with 90s ASCII art and buttons
         header_frame = tk.Frame(main_frame, bg=self.BG_COLOR)
         header_frame.pack(pady=(0, 10), fill=tk.X)
 
@@ -77,23 +98,8 @@ class ChatClient:
         abort_btn.bind("<Enter>", on_abort_enter)
         abort_btn.bind("<Leave>", on_abort_leave)
 
-        # Header title - pack first before buttons to ensure visibility
-        header = tk.Label(
-            header_frame,
-            text="░▒▓█ SECURE CHAT █▓▒░\n>> ENCRYPTED TUNNEL ESTABLISHED <<",
-            font=("Courier", 10, "bold"),
-            bg=self.BG_COLOR,
-            fg=self.SYSTEM_COLOR
-        )
-        header.pack(side=tk.LEFT, padx=(10, 0))
-
-        # Spacer to push buttons to the right
-        spacer = tk.Frame(header_frame, bg=self.BG_COLOR)
-        spacer.pack(side=tk.LEFT, expand=True, fill=tk.X)
-
         # OPERATIONS button - purple with cyberpunk style - pack on RIGHT side for visibility
         if self.operations_callback:
-            print("[DEBUG] OPERATIONS button will be created - callback exists")
             ops_btn = tk.Button(
                 header_frame,
                 text="OPERATIONS",
@@ -118,8 +124,19 @@ class ChatClient:
                 ops_btn.config(bg="#7b2cbf", fg="#00ff41", relief=tk.RAISED)
             ops_btn.bind("<Enter>", on_ops_enter)
             ops_btn.bind("<Leave>", on_ops_leave)
-        else:
-            print("[DEBUG] OPERATIONS button NOT created - no callback provided")
+
+        # Centered header title - separate frame for proper centering
+        title_frame = tk.Frame(main_frame, bg=self.BG_COLOR)
+        title_frame.pack(pady=(0, 10), fill=tk.X)
+
+        header = tk.Label(
+            title_frame,
+            text="░▒▓█ SECURE CHAT █▓▒░\n>> ENCRYPTED TUNNEL ESTABLISHED <<",
+            font=("Courier", 10, "bold"),
+            bg=self.BG_COLOR,
+            fg=self.SYSTEM_COLOR
+        )
+        header.pack(anchor=tk.CENTER)
 
         # Content frame (users + chat)
         content_frame = tk.Frame(main_frame, bg=self.BG_COLOR)
@@ -185,7 +202,8 @@ class ChatClient:
 
         # Configure text tags for colors
         self.chat_display.tag_config("system", foreground=self.SYSTEM_COLOR)
-        self.chat_display.tag_config("user", foreground=self.USER_COLOR)
+        self.chat_display.tag_config("username", foreground=self.TEXT_COLOR)  # Hacker green for usernames
+        self.chat_display.tag_config("time", foreground=self.SYSTEM_COLOR)  # Yellow for timestamps
         self.chat_display.tag_config("dm", foreground=self.DM_COLOR)
         self.chat_display.tag_config("text", foreground=self.TEXT_COLOR)
 
@@ -242,13 +260,28 @@ class ChatClient:
         # Focus on input
         self.message_entry.focus()
 
-    def display_message(self, message, tag="text"):
-        """Display message in chat window."""
-        self.chat_display.config(state=tk.NORMAL)
-        timestamp = datetime.now().strftime("%H:%M:%S")
+    def display_message(self, message, tag="text", username=None):
+        """Display message in chat window.
 
-        self.chat_display.insert(tk.END, f"[{timestamp}] ", "system")
-        self.chat_display.insert(tk.END, f"{message}\n", tag)
+        Args:
+            message: The message text
+            tag: Color tag for the message
+            username: Username to display (if None, extracts from message or uses "SYSTEM")
+        """
+        self.chat_display.config(state=tk.NORMAL)
+        timestamp = datetime.now().strftime("%H:%M")  # Remove seconds
+
+        # Format: <username> message [HH:MM]
+        if username:
+            # User message format
+            self.chat_display.insert(tk.END, f"<{username}> ", "username")
+            self.chat_display.insert(tk.END, message, tag)
+            self.chat_display.insert(tk.END, f" [{timestamp}]\n", "time")
+        else:
+            # System message format (connections, etc.)
+            self.chat_display.insert(tk.END, message, tag)
+            self.chat_display.insert(tk.END, f" [{timestamp}]\n", "time")
+
         self.chat_display.see(tk.END)
         self.chat_display.config(state=tk.DISABLED)
 
@@ -276,16 +309,17 @@ class ChatClient:
                     self.socket.send(f'DM:{recipient}:{dm_message}\n'.encode('utf-8'))
                     self.display_message(f"[DM to {recipient}] {dm_message}", "dm")
                 else:
-                    self.display_message("Usage: /msg username message", "system")
+                    self.display_message(">> Usage: /msg username message", "system")
             else:
                 # Group message
                 self.socket.send(f'MSG:{message}\n'.encode('utf-8'))
-                self.display_message(f"<{self.username}> {message}", "user")
+                self.display_message(message, "text", username=self.username)
 
             self.message_entry.delete(0, tk.END)
 
         except Exception as e:
-            self.display_message(f"Error sending message: {e}", "system")
+            # Don't display errors in chat window - only in status bar
+            self.status_label.config(text=f">> Error: {e}")
 
     def receive_messages(self):
         """Receive messages from server."""
@@ -304,17 +338,18 @@ class ChatClient:
 
             except Exception as e:
                 if self.running:
-                    self.display_message(f"Connection error: {e}", "system")
+                    # Show connection errors in status bar only, not chat window
+                    self.status_label.config(text=f">> Connection error")
                 break
 
         if self.running:
-            self.display_message(">> Disconnected from server", "system")
+            self.display_message(">> SYSTEM: Disconnected from server", "system")
             self.status_label.config(text=">> Disconnected")
 
     def process_message(self, message):
         """Process incoming message from server."""
         if message.startswith('WELCOME:'):
-            self.display_message(f">> Connected as {message[8:]}", "system")
+            # Don't show in chat, only update status bar
             self.status_label.config(text=f">> Connected as {self.username}")
 
         elif message.startswith('USERLIST:'):
@@ -323,18 +358,18 @@ class ChatClient:
 
         elif message.startswith('JOIN:'):
             username = message[5:]
-            self.display_message(f">> {username} has joined", "system")
+            self.display_message(f">> SYSTEM: {username} has joined", "system")
 
         elif message.startswith('LEAVE:'):
             username = message[6:]
-            self.display_message(f">> {username} has left", "system")
+            self.display_message(f">> SYSTEM: {username} has left", "system")
 
         elif message.startswith('MSG:'):
             # Format: MSG:username:message
             parts = message[4:].split(':', 1)
             if len(parts) == 2:
                 username, msg = parts
-                self.display_message(f"<{username}> {msg}", "user")
+                self.display_message(msg, "text", username=username)
 
         elif message.startswith('DM:'):
             # Format: DM:sender:message
@@ -351,7 +386,12 @@ class ChatClient:
                 self.display_message(f"[OFFLINE MSG from {sender}] {msg}", "dm")
 
         elif message.startswith('INFO:'):
-            self.display_message(f">> {message[5:]}", "system")
+            # Show INFO messages in status bar, not chat window
+            self.status_label.config(text=f">> {message[5:]}")
+
+        elif message.startswith('ERROR:'):
+            # Show ERROR messages in status bar only, not chat window
+            self.status_label.config(text=f">> Error: {message[6:]}")
 
     def connect(self, username):
         """Connect to the chat server."""
@@ -382,8 +422,8 @@ class ChatClient:
             return True
 
         except Exception as e:
-            self.display_message(f">> Connection failed: {e}", "system")
-            self.status_label.config(text=">> Connection failed")
+            # Show connection error in status bar only
+            self.status_label.config(text=f">> Connection failed: {e}")
             return False
 
     def _on_abort(self):

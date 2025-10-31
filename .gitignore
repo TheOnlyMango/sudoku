@@ -43,7 +43,12 @@ Thumbs.db
 
 # Chat
 chat_messages.db
+chat_config.json
 
 # Operations
 operations.db
 uploads/
+
+# Logs
+logs/
+*.log

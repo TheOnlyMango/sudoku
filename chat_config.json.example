@@ -1,0 +1,27 @@
+{
+  "_comment": "Chat Server Configuration - Copy to chat_config.json and customize",
+
+  "server": {
+    "host": "0.0.0.0",
+    "port": 7331,
+    "_comment_host": "0.0.0.0 listens on all interfaces (recommended for Tailscale)"
+  },
+
+  "client": {
+    "server_address": "auto",
+    "server_port": 7331,
+    "_comment_address": "Options: 'auto' (Tailscale hostname), IP address, or hostname",
+    "_examples": [
+      "auto - tries to find server via Tailscale hostname",
+      "100.115.233.16 - specific Tailscale IP",
+      "main-win - Tailscale hostname",
+      "chat-server.tail-scale.ts.net - full Tailscale hostname"
+    ]
+  },
+
+  "tailscale": {
+    "enabled": true,
+    "hostname": "chat-server",
+    "_comment_hostname": "Tailscale hostname to try (without .tail-scale.ts.net suffix)"
+  }
+}

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Improved Secret Chat Server - 90s Hacker Style with Security Enhancements
-Runs on main-win (100.115.233.16)
+Works on any machine in Tailscale network
 
 Security improvements:
 - Token-based authentication
@@ -28,21 +28,27 @@ from security_config import (
 )
 from server_logging import chat_logger, ops_logger, security_logger
 from db_pool import get_pool
+from chat_config_reader import get_config
 
 
 class ImprovedChatServer:
     """Improved chat server with security features."""
 
-    def __init__(self, host='100.115.233.16', port=7331, use_encryption=False):
+    def __init__(self, host=None, port=None, use_encryption=False):
         """Initialize the chat server.
 
         Args:
-            host: Server host address
-            port: Server port
+            host: Server host address (None = read from config, default 0.0.0.0)
+            port: Server port (None = read from config, default 7331)
             use_encryption: Whether to use socket encryption (requires cryptography)
         """
-        self.host = host
-        self.port = port
+        # Load config
+        config = get_config()
+        config_host, config_port = config.get_server_config()
+
+        # Use provided values or config values
+        self.host = host if host is not None else config_host
+        self.port = port if port is not None else config_port
         self.use_encryption = use_encryption
         self.clients: Dict[socket.socket, Tuple[str, str]] = {}  # socket -> (username, token)
         self.running = False
@@ -457,7 +463,12 @@ class ImprovedChatServer:
         try:
             self.server_socket.bind((self.host, self.port))
             self.server_socket.listen(5)
-            chat_logger.info(f"SERVER STARTED: Listening on {self.host}:{self.port}")
+
+            # Get display address
+            config = get_config()
+            display_addr = config.get_server_display_address()
+
+            chat_logger.info(f"SERVER STARTED: Listening on {display_addr}")
             chat_logger.info("Waiting for connections...")
 
             while self.running:

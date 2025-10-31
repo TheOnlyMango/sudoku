@@ -57,7 +57,7 @@ class OperationsClient:
 
         # Header with buttons
         header_frame = tk.Frame(self.main_frame, bg=self.BG_COLOR)
-        header_frame.pack(pady=(0, 10), fill=tk.X)
+        header_frame.pack(pady=(0, 5), fill=tk.X)
 
         # ABORT button
         abort_btn = self._create_button(
@@ -81,15 +81,18 @@ class OperationsClient:
             )
             chat_btn.pack(side=tk.LEFT, padx=5)
 
-        # Title
+        # Centered title - separate frame for proper centering
+        title_frame = tk.Frame(self.main_frame, bg=self.BG_COLOR)
+        title_frame.pack(pady=(0, 10), fill=tk.X)
+
         title = tk.Label(
-            header_frame,
+            title_frame,
             text="░▒▓█ OPERATIONS DATABASE █▓▒░",
             font=("Courier", 12, "bold"),
             bg=self.BG_COLOR,
             fg=self.ACCENT_COLOR
         )
-        title.pack(side=tk.LEFT, expand=True)
+        title.pack(anchor=tk.CENTER)
 
         # Create new operation form
         form_frame = tk.Frame(self.main_frame, bg=self.PANEL_COLOR, relief=tk.RIDGE, bd=3,
@@ -199,8 +202,9 @@ class OperationsClient:
         )
         access_btn.pack(pady=10)
 
-        # Load operations after UI is ready (schedule for next event loop iteration)
-        self.root.after(100, self._load_operations)
+        # Force immediate operations sync when first loading
+        # Clear socket buffer and load operations synchronously
+        self._load_operations()
 
     def show_operation_thread(self, op_name, op_info):
         """Show operation thread/forum page."""

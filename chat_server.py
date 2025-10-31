@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Secret Chat Server - 90s Hacker Style
-Runs on main-win (100.115.233.16)
+Works on any machine in Tailscale network
 """
 
 import socket
@@ -12,14 +12,26 @@ import time
 from datetime import datetime
 from typing import Dict, Set
 from operations_db import OperationsDB
+from chat_config_reader import get_config
 
 
 class ChatServer:
     """Simple chat server for Tailscale network."""
 
-    def __init__(self, host='100.115.233.16', port=7331):  # 1337 reversed ;)
-        self.host = host
-        self.port = port
+    def __init__(self, host=None, port=None):
+        """Initialize chat server.
+
+        Args:
+            host: Host to bind to (None = read from config, default 0.0.0.0)
+            port: Port to bind to (None = read from config, default 7331)
+        """
+        # Load config
+        config = get_config()
+        config_host, config_port = config.get_server_config()
+
+        # Use provided values or config values
+        self.host = host if host is not None else config_host
+        self.port = port if port is not None else config_port
         self.clients: Dict[socket.socket, str] = {}  # socket -> username
         self.usernames: Set[str] = set()
         self.running = False
@@ -303,7 +315,12 @@ class ChatServer:
         try:
             self.server_socket.bind((self.host, self.port))
             self.server_socket.listen(5)
-            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] SERVER STARTED: Listening on {self.host}:{self.port}")
+
+            # Get display address
+            config = get_config()
+            display_addr = config.get_server_display_address()
+
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] SERVER STARTED: Listening on {display_addr}")
             print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Waiting for connections...")
 
             while self.running:
