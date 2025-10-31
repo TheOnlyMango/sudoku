@@ -7,6 +7,7 @@ import threading
 import time
 import sys
 import os
+import json
 from datetime import datetime
 
 # Add parent directory to path to import config reader
@@ -48,6 +49,11 @@ class ChatClient:
         self.exit_callback = exit_callback
         self.operations_callback = operations_callback
         self.is_hidden = False  # Track if chat is just hidden (not disconnected)
+
+        # Request/response system for DM operations
+        self.pending_responses = {}  # {request_id: response_data}
+        self.response_lock = threading.Lock()
+        self.request_counter = 0
 
         # Typing indicator state
         self.typing_users = {}  # {username: timestamp}
@@ -639,6 +645,25 @@ class ChatClient:
             if username != self.username:
                 self.typing_users[username] = time.time()
 
+        elif message.startswith('DM_INBOX:'):
+            # Store response for inbox UI
+            with self.response_lock:
+                self.pending_responses['DM_INBOX'] = message[9:]
+
+        elif message.startswith('DM_CONVERSATION:'):
+            # Store response for inbox UI
+            with self.response_lock:
+                self.pending_responses['DM_CONVERSATION'] = message[16:]
+
+        elif message.startswith('DM_MARKED_READ:'):
+            # Acknowledge read status update
+            with self.response_lock:
+                self.pending_responses['DM_MARKED_READ'] = True
+
+        elif message.startswith('DM_SENT:'):
+            # DM sent confirmation
+            self.update_status(message[8:], 'green')
+
     def connect(self, username, password, is_anon):
         """Connect to the chat server with authentication."""
         self.username = username
@@ -698,6 +723,77 @@ class ChatClient:
             # Show connection error in status bar only
             self.update_status(f"CONNECTION FAILED", 'red')
             return False, str(e)
+
+    def request_inbox(self):
+        """Request inbox data from server."""
+        if not self.socket:
+            return None
+
+        # Clear previous response
+        with self.response_lock:
+            self.pending_responses.pop('DM_INBOX', None)
+
+        # Send request
+        try:
+            self.socket.send(b'DM_INBOX:\n')
+        except:
+            return None
+
+        # Wait for response (with timeout)
+        for _ in range(20):  # Wait up to 2 seconds
+            time.sleep(0.1)
+            with self.response_lock:
+                if 'DM_INBOX' in self.pending_responses:
+                    data = self.pending_responses.pop('DM_INBOX')
+                    return json.loads(data) if data else []
+
+        return None
+
+    def request_conversation(self, other_user):
+        """Request conversation with another user."""
+        if not self.socket:
+            return None
+
+        # Clear previous response
+        with self.response_lock:
+            self.pending_responses.pop('DM_CONVERSATION', None)
+
+        # Send request
+        try:
+            self.socket.send(f'DM_CONVERSATION:{other_user}\n'.encode('utf-8'))
+        except:
+            return None
+
+        # Wait for response
+        for _ in range(20):
+            time.sleep(0.1)
+            with self.response_lock:
+                if 'DM_CONVERSATION' in self.pending_responses:
+                    data = self.pending_responses.pop('DM_CONVERSATION')
+                    return json.loads(data) if data else []
+
+        return None
+
+    def mark_conversation_read(self, other_user):
+        """Mark conversation as read."""
+        if not self.socket:
+            return
+
+        try:
+            self.socket.send(f'DM_MARK_READ:{other_user}\n'.encode('utf-8'))
+        except:
+            pass
+
+    def send_dm(self, recipient, message):
+        """Send a direct message."""
+        if not self.socket:
+            return False
+
+        try:
+            self.socket.send(f'DM:{recipient}:{message}\n'.encode('utf-8'))
+            return True
+        except:
+            return False
 
     def show_inbox(self):
         """Show DM inbox."""

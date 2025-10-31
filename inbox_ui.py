@@ -1,9 +1,10 @@
 """Inbox UI - 90s Hacker Style DM Interface"""
 
 import tkinter as tk
-from tkinter import scrolledtext, messagebox
+from tkinter import scrolledtext, messagebox, ttk
 from datetime import datetime
 import json
+import time
 
 
 class InboxUI:
@@ -254,25 +255,13 @@ class InboxUI:
 
     def load_inbox(self):
         """Request inbox data from server."""
-        if not self.chat_client.socket:
-            return
+        conversations = self.chat_client.request_inbox()
 
-        try:
-            # Request inbox
-            self.chat_client.socket.send(b'DM_INBOX:\n')
-
-            # Wait for response (with timeout)
-            self.chat_client.socket.settimeout(2.0)
-            response = self.chat_client.socket.recv(8192).decode('utf-8')
-            self.chat_client.socket.settimeout(None)
-
-            if response.startswith('DM_INBOX:'):
-                data = response[9:].strip()
-                self.conversations = json.loads(data)
-                self.update_conversation_list()
-
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to load inbox: {e}")
+        if conversations is not None:
+            self.conversations = conversations
+            self.update_conversation_list()
+        else:
+            messagebox.showerror("Error", "Failed to load inbox")
 
     def update_conversation_list(self):
         """Update the conversations listbox."""
@@ -312,25 +301,12 @@ class InboxUI:
 
     def load_conversation(self, other_user):
         """Load conversation with another user."""
-        if not self.chat_client.socket:
-            return
+        messages = self.chat_client.request_conversation(other_user)
 
-        try:
-            # Request conversation
-            self.chat_client.socket.send(f'DM_CONVERSATION:{other_user}\n'.encode('utf-8'))
-
-            # Wait for response
-            self.chat_client.socket.settimeout(2.0)
-            response = self.chat_client.socket.recv(8192).decode('utf-8')
-            self.chat_client.socket.settimeout(None)
-
-            if response.startswith('DM_CONVERSATION:'):
-                data = response[16:].strip()
-                messages = json.loads(data)
-                self.display_conversation(messages, other_user)
-
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to load conversation: {e}")
+        if messages is not None:
+            self.display_conversation(messages, other_user)
+        else:
+            messagebox.showerror("Error", "Failed to load conversation")
 
     def display_conversation(self, messages, other_user):
         """Display conversation messages."""
@@ -371,20 +347,13 @@ class InboxUI:
 
     def mark_conversation_read(self, other_user):
         """Mark conversation as read."""
-        if not self.chat_client.socket:
-            return
+        self.chat_client.mark_conversation_read(other_user)
 
-        try:
-            self.chat_client.socket.send(f'DM_MARK_READ:{other_user}\n'.encode('utf-8'))
-
-            # Update local conversation list
-            for conv in self.conversations:
-                if conv['user'] == other_user:
-                    conv['unread'] = 0
-            self.update_conversation_list()
-
-        except Exception as e:
-            pass  # Silently fail
+        # Update local conversation list
+        for conv in self.conversations:
+            if conv['user'] == other_user:
+                conv['unread'] = 0
+        self.update_conversation_list()
 
     def send_reply(self):
         """Send a reply in the current conversation."""
@@ -396,18 +365,15 @@ class InboxUI:
         if not message:
             return
 
-        try:
-            # Send DM
-            self.chat_client.socket.send(f'DM:{self.current_conversation}:{message}\n'.encode('utf-8'))
-
+        if self.chat_client.send_dm(self.current_conversation, message):
             # Clear input
             self.reply_entry.delete(0, tk.END)
 
             # Reload conversation to show new message
+            time.sleep(0.2)  # Brief delay for DB write
             self.load_conversation(self.current_conversation)
-
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to send message: {e}")
+        else:
+            messagebox.showerror("Error", "Failed to send message")
 
     def new_message(self):
         """Open dialog to send a new message to a user."""
@@ -435,23 +401,24 @@ class InboxUI:
             fg="#50fa7b"
         ).pack(pady=10)
 
-        # Recipient field
+        # Recipient field with autocomplete
         tk.Label(
             dialog,
-            text="TO:",
+            text="TO: @username",
             font=("Courier", 10),
             bg=self.BG_COLOR,
             fg=self.TEXT_COLOR
         ).pack(anchor=tk.W, padx=20)
 
-        recipient_entry = tk.Entry(
+        # Get list of all registered users (non-anon)
+        registered_users = [u for u, is_anon in self.chat_client.users.items() if not is_anon and u != self.chat_client.username]
+
+        # Use Combobox for autocomplete
+        recipient_entry = ttk.Combobox(
             dialog,
+            values=sorted(registered_users),
             font=("Courier", 10),
-            bg=self.INPUT_BG,
-            fg=self.TEXT_COLOR,
-            insertbackground=self.TEXT_COLOR,
-            relief=tk.FLAT,
-            bd=2
+            width=37
         )
         recipient_entry.pack(fill=tk.X, padx=20, pady=5)
         recipient_entry.focus()
@@ -490,13 +457,13 @@ class InboxUI:
                 messagebox.showwarning("Missing Info", "Please enter recipient and message")
                 return
 
-            try:
-                self.chat_client.socket.send(f'DM:{recipient}:{message}\n'.encode('utf-8'))
+            if self.chat_client.send_dm(recipient, message):
                 dialog.destroy()
-                # Refresh inbox
+                # Refresh inbox after brief delay
+                time.sleep(0.2)
                 self.load_inbox()
-            except Exception as e:
-                messagebox.showerror("Error", f"Failed to send message: {e}")
+            else:
+                messagebox.showerror("Error", "Failed to send message")
 
         send_btn = tk.Button(
             btn_frame,
