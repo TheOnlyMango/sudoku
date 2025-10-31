@@ -4,6 +4,7 @@ import tkinter as tk
 from tkinter import scrolledtext, filedialog, messagebox
 import socket
 import json
+import threading
 from typing import Optional, Callable
 
 
@@ -389,63 +390,90 @@ class OperationsClient:
         return btn
 
     def _load_operations(self):
-        """Load operations list from server."""
-        # Show loading status
-        self._update_status("[ LOADING... ]", self.TEXT_COLOR)
+        """Load operations list from server (runs in background thread)."""
+        # Run in separate thread to avoid UI freezing
+        thread = threading.Thread(target=self._load_operations_thread, daemon=True)
+        thread.start()
 
-        try:
-            # Clear any pending data in socket buffer
-            self._clear_socket_buffer()
+    def _load_operations_thread(self):
+        """Background thread for loading operations with retry logic."""
+        # Show loading status (thread-safe UI update)
+        self.root.after(0, lambda: self._update_status("[ LOADING... ]", self.TEXT_COLOR))
 
-            self.socket.send(b'OP_LIST:\n')
+        # Try twice - first attempt often times out due to buffer issues
+        for attempt in range(2):
+            try:
+                # Aggressive buffer clearing before each attempt
+                self._clear_socket_buffer()
 
-            # Set a longer timeout for initial load
-            self.socket.settimeout(8.0)
+                # Small delay between attempts
+                if attempt > 0:
+                    import time
+                    time.sleep(0.5)
 
-            # Receive response with timeout
-            response = self.socket.recv(8192).decode('utf-8').strip()
+                self.socket.send(b'OP_LIST:\n')
 
-            # Reset to blocking
-            self.socket.settimeout(None)
+                # Shorter timeout, rely on retry instead
+                self.socket.settimeout(5.0)
 
-            if response.startswith('OP_LIST:'):
-                data = response[8:]
-                operations = json.loads(data)
+                # Receive response with timeout
+                response = self.socket.recv(8192).decode('utf-8').strip()
 
-                self.ops_listbox.delete(0, tk.END)
-                self.operations_data = {}
+                # Reset to blocking
+                self.socket.settimeout(None)
 
-                for op in operations:
-                    display = f">> {op['name'].upper():20s} | by {op['creator']:10s} | {op['created_at'][:10]}"
-                    self.ops_listbox.insert(tk.END, display)
-                    self.operations_data[display] = op
+                if response.startswith('OP_LIST:'):
+                    data = response[8:]
+                    operations = json.loads(data)
 
-                # Show success status briefly
-                self._update_status("[ REFRESHED ]", self.SUCCESS_COLOR)
-                self.root.after(2000, lambda: self._update_status("", self.TEXT_COLOR))
-            else:
-                self._update_status("[ ERROR ]", self.ERROR_COLOR)
-                self._show_message("No response from server", self.ERROR_COLOR)
+                    # Thread-safe UI updates
+                    def update_ui():
+                        self.ops_listbox.delete(0, tk.END)
+                        self.operations_data = {}
 
-        except socket.timeout:
-            self._update_status("[ ERROR ]", self.ERROR_COLOR)
-            self._show_message("Server timeout - is server running?", self.ERROR_COLOR)
-            self.socket.settimeout(None)
-        except Exception as e:
-            error_msg = str(e).lower()
-            print(f"Error loading operations: {e}")
-            self._update_status("[ ERROR ]", self.ERROR_COLOR)
+                        for op in operations:
+                            display = f">> {op['name'].upper():20s} | by {op['creator']:10s} | {op['created_at'][:10]}"
+                            self.ops_listbox.insert(tk.END, display)
+                            self.operations_data[display] = op
 
-            # Provide helpful error messages based on error type
-            if "operations.db" in error_msg or "database" in error_msg or "no such table" in error_msg:
-                self._show_message(
-                    "Database not found on server.\nServer may be running on a different machine.\nCreate a new operation to initialize database!",
-                    self.ERROR_COLOR
-                )
-            elif "connection" in error_msg:
-                self._show_message("Connection lost to server", self.ERROR_COLOR)
-            else:
-                self._show_message(f"Error: {e}", self.ERROR_COLOR)
+                        # Show success status briefly
+                        self._update_status("[ REFRESHED ]", self.SUCCESS_COLOR)
+                        self.root.after(2000, lambda: self._update_status("", self.TEXT_COLOR))
+
+                    self.root.after(0, update_ui)
+                    return  # Success, exit retry loop
+
+                else:
+                    if attempt == 1:  # Last attempt failed
+                        self.root.after(0, lambda: self._update_status("[ ERROR ]", self.ERROR_COLOR))
+                        self.root.after(0, lambda: self._show_message("No response from server", self.ERROR_COLOR))
+
+            except socket.timeout:
+                if attempt == 1:  # Last attempt timed out
+                    self.socket.settimeout(None)
+                    self.root.after(0, lambda: self._update_status("[ ERROR ]", self.ERROR_COLOR))
+                    self.root.after(0, lambda: self._show_message("Server timeout - click refresh again", self.ERROR_COLOR))
+                # If first attempt, continue to retry
+                self.socket.settimeout(None)
+
+            except Exception as e:
+                if attempt == 1:  # Last attempt failed
+                    error_msg = str(e).lower()
+                    print(f"Error loading operations: {e}")
+
+                    def show_error():
+                        self._update_status("[ ERROR ]", self.ERROR_COLOR)
+                        if "operations.db" in error_msg or "database" in error_msg or "no such table" in error_msg:
+                            self._show_message(
+                                "Database not found on server.\nServer may be running on a different machine.\nCreate a new operation to initialize database!",
+                                self.ERROR_COLOR
+                            )
+                        elif "connection" in error_msg:
+                            self._show_message("Connection lost to server", self.ERROR_COLOR)
+                        else:
+                            self._show_message(f"Error: {e}", self.ERROR_COLOR)
+
+                    self.root.after(0, show_error)
 
     def _create_operation(self):
         """Create new operation."""
