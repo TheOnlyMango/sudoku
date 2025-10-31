@@ -504,7 +504,8 @@ class ChatClient:
     def update_user_list(self, users):
         """Update the user list."""
         self.user_listbox.delete(0, tk.END)
-        self.users = set(users)
+        # Don't overwrite self.users dict - it contains anon status info
+        # Just update the display
 
         for user in sorted(users):
             prefix = ">" if user == self.username else " "
