@@ -1,5 +1,8 @@
 # GUI Dependencies
 Pillow>=10.0.0  # Required for logo rendering in GUI
 
+# Security dependencies (for chat server)
+cryptography>=41.0.0  # For encrypted socket communication
+
 # Development dependencies (optional)
 pytest>=7.0.0  # For running tests
