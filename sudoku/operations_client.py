@@ -55,14 +55,27 @@ class OperationsClient:
         self.current_view = "list"
         self.clear_main_frame()
 
-        # Header with buttons
+        # Centered title at top
+        title_frame = tk.Frame(self.main_frame, bg=self.BG_COLOR)
+        title_frame.pack(pady=(0, 10), fill=tk.X)
+
+        title = tk.Label(
+            title_frame,
+            text="░▒▓█ OPERATIONS DATABASE █▓▒░",
+            font=("Courier", 12, "bold"),
+            bg=self.BG_COLOR,
+            fg=self.ACCENT_COLOR
+        )
+        title.pack(anchor=tk.CENTER)
+
+        # Centered buttons underneath header
         header_frame = tk.Frame(self.main_frame, bg=self.BG_COLOR)
-        header_frame.pack(pady=(0, 5), fill=tk.X)
+        header_frame.pack(pady=(0, 10))
 
         # ABORT button
         abort_btn = self._create_button(
             header_frame, "ABORT", self._on_abort,
-            bg="#8b0000", fg="#ffffff", width=8
+            bg="#8b0000", fg="#ffffff", width=12
         )
         abort_btn.pack(side=tk.LEFT, padx=5)
 
@@ -77,22 +90,9 @@ class OperationsClient:
         if self.chat_callback:
             chat_btn = self._create_button(
                 header_frame, "CHAT", self.chat_callback,
-                bg=self.BUTTON_COLOR, fg=self.TEXT_COLOR, width=8
+                bg=self.BUTTON_COLOR, fg=self.TEXT_COLOR, width=12
             )
             chat_btn.pack(side=tk.LEFT, padx=5)
-
-        # Centered title - separate frame for proper centering
-        title_frame = tk.Frame(self.main_frame, bg=self.BG_COLOR)
-        title_frame.pack(pady=(0, 10), fill=tk.X)
-
-        title = tk.Label(
-            title_frame,
-            text="░▒▓█ OPERATIONS DATABASE █▓▒░",
-            font=("Courier", 12, "bold"),
-            bg=self.BG_COLOR,
-            fg=self.ACCENT_COLOR
-        )
-        title.pack(anchor=tk.CENTER)
 
         # Create new operation form
         form_frame = tk.Frame(self.main_frame, bg=self.PANEL_COLOR, relief=tk.RIDGE, bd=3,
@@ -195,26 +195,23 @@ class OperationsClient:
         )
         self.ops_listbox.pack(fill=tk.BOTH, expand=True)
 
-        # Button frame for Access and Refresh buttons
+        # Button frame for Access and Refresh buttons - full width like form
         button_frame = tk.Frame(list_frame, bg=self.PANEL_COLOR)
-        button_frame.pack(pady=10)
+        button_frame.pack(pady=10, padx=10, fill=tk.X)
 
-        # Access button
+        # Access button - equal width, expand to fill
         access_btn = self._create_button(
             button_frame, "[ ACCESS OPERATION ]", self._access_operation,
             bg=self.BUTTON_COLOR, fg=self.TEXT_COLOR
         )
-        access_btn.pack(side=tk.LEFT, padx=5)
+        access_btn.pack(side=tk.LEFT, padx=5, fill=tk.X, expand=True)
 
-        # Refresh button with retro icon
+        # Refresh button - equal width, expand to fill
         refresh_btn = self._create_button(
-            button_frame, "[ ◄► REFRESH ]", self._load_operations,
+            button_frame, "[ REFRESH ]", self._load_operations,
             bg=self.SUCCESS_COLOR, fg=self.BG_COLOR
         )
-        refresh_btn.pack(side=tk.LEFT, padx=5)
-
-        # Force immediate operations sync when first loading (with retry)
-        self.root.after(100, self._load_operations_with_retry)
+        refresh_btn.pack(side=tk.LEFT, padx=5, fill=tk.X, expand=True)
 
     def show_operation_thread(self, op_name, op_info):
         """Show operation thread/forum page."""
@@ -390,17 +387,6 @@ class OperationsClient:
         btn.bind("<Leave>", on_leave)
 
         return btn
-
-    def _load_operations_with_retry(self):
-        """Load operations with retry mechanism (called on initial page load)."""
-        try:
-            # Clear socket buffer more aggressively
-            self._clear_socket_buffer()
-            # Small delay to let socket settle
-            self.root.after(200, self._load_operations)
-        except:
-            # If first attempt fails, just show error
-            self._update_status("[ ERROR ]", self.ERROR_COLOR)
 
     def _load_operations(self):
         """Load operations list from server."""

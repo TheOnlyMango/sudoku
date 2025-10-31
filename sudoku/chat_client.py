@@ -100,7 +100,18 @@ class ChatClient:
             fg=self.BUTTON_COLOR,
             justify=tk.CENTER
         )
-        title_bar.pack(pady=(0, 5))
+        title_bar.pack(pady=(0, 2))
+
+        # Blinking tunnel status message
+        self.tunnel_label = tk.Label(
+            main_frame,
+            text=">> ENCRYPTED TUNNEL ESTABLISHED <<",
+            font=("Courier", 8, "bold"),
+            bg=self.BG_COLOR,
+            fg=self.SYSTEM_COLOR
+        )
+        self.tunnel_label.pack(pady=(0, 5))
+        self._start_tunnel_blink()
 
         # Header with 90s ASCII art and buttons
         header_frame = tk.Frame(main_frame, bg=self.BG_COLOR)
@@ -158,19 +169,6 @@ class ChatClient:
                 ops_btn.config(bg="#7b2cbf", fg="#00ff41", relief=tk.RAISED)
             ops_btn.bind("<Enter>", on_ops_enter)
             ops_btn.bind("<Leave>", on_ops_leave)
-
-        # Centered header title - separate frame for proper centering
-        title_frame = tk.Frame(main_frame, bg=self.BG_COLOR)
-        title_frame.pack(pady=(0, 10), fill=tk.X)
-
-        header = tk.Label(
-            title_frame,
-            text="░▒▓█ SECURE CHAT █▓▒░\n>> ENCRYPTED TUNNEL ESTABLISHED <<",
-            font=("Courier", 10, "bold"),
-            bg=self.BG_COLOR,
-            fg=self.SYSTEM_COLOR
-        )
-        header.pack(anchor=tk.CENTER)
 
         # Content frame (users + chat)
         content_frame = tk.Frame(main_frame, bg=self.BG_COLOR)
@@ -248,7 +246,7 @@ class ChatClient:
         # Terminal-style prompt label
         prompt_label = tk.Label(
             input_frame,
-            text="$",
+            text=">>>",
             font=("Courier", 12, "bold"),
             bg=self.BG_COLOR,
             fg=self.PROMPT_COLOR
@@ -326,6 +324,18 @@ class ChatClient:
         # Hash the username to get consistent color
         hash_value = sum(ord(c) for c in username)
         return self.USER_COLORS[hash_value % len(self.USER_COLORS)]
+
+    def _start_tunnel_blink(self):
+        """Start slow blinking animation for tunnel status."""
+        def blink():
+            if hasattr(self, 'tunnel_label'):
+                current_fg = self.tunnel_label.cget("fg")
+                # Toggle between visible (orange) and hidden (background color)
+                new_fg = self.BG_COLOR if current_fg == self.SYSTEM_COLOR else self.SYSTEM_COLOR
+                self.tunnel_label.config(fg=new_fg)
+                # Slow blink: 1000ms (1 second) interval
+                self.root.after(1000, blink)
+        blink()
 
     def update_status(self, text, led_color):
         """Update status text and LED indicator.
