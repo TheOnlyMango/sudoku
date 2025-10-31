@@ -26,7 +26,7 @@ class AuthUI:
         # Create modal window
         self.auth_window = tk.Toplevel(self.root)
         self.auth_window.title("SHNet Secure Terminal - Authentication")
-        self.auth_window.geometry("400x300")
+        self.auth_window.geometry("400x380")
         self.auth_window.resizable(False, False)
         self.auth_window.configure(bg='#1e1e1e')
 
@@ -37,8 +37,8 @@ class AuthUI:
         # Center the window
         self.auth_window.update_idletasks()
         x = (self.auth_window.winfo_screenwidth() // 2) - (400 // 2)
-        y = (self.auth_window.winfo_screenheight() // 2) - (300 // 2)
-        self.auth_window.geometry(f"400x300+{x}+{y}")
+        y = (self.auth_window.winfo_screenheight() // 2) - (380 // 2)
+        self.auth_window.geometry(f"400x380+{x}+{y}")
 
         # Header
         header_frame = tk.Frame(self.auth_window, bg='#1e1e1e')

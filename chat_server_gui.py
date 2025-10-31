@@ -7,9 +7,38 @@ import tkinter as tk
 from tkinter import scrolledtext
 import threading
 import sys
+import logging
 from io import StringIO
 from datetime import datetime
 from chat_server_improved import ImprovedChatServer
+
+
+class GUILogHandler(logging.Handler):
+    """Custom logging handler that sends logs to GUI."""
+
+    def __init__(self, gui):
+        super().__init__()
+        self.gui = gui
+
+    def emit(self, record):
+        """Emit a log record to the GUI."""
+        try:
+            msg = self.format(record)
+
+            # Color based on level
+            if record.levelno >= logging.ERROR:
+                color = '#ff5555'  # Red
+            elif record.levelno >= logging.WARNING:
+                color = '#ffb86c'  # Orange
+            elif record.levelno >= logging.INFO:
+                color = '#8be9fd'  # Cyan
+            else:
+                color = '#f8f8f2'  # White
+
+            # Thread-safe GUI update
+            self.gui.root.after(0, lambda: self.gui.log_message(msg, color))
+        except Exception:
+            pass
 
 
 class ServerGUI:
@@ -181,6 +210,16 @@ class ServerGUI:
             self.server = ImprovedChatServer()
             self.running = True
 
+            # Hook up logging to GUI
+            from server_logging import chat_logger, ops_logger, security_logger
+            handler = GUILogHandler(self)
+            formatter = logging.Formatter('%(message)s')
+            handler.setFormatter(formatter)
+
+            chat_logger.addHandler(handler)
+            ops_logger.addHandler(handler)
+            security_logger.addHandler(handler)
+
             # Start server in background thread
             self.server_thread = threading.Thread(target=self._run_server, daemon=True)
             self.server_thread.start()
@@ -191,7 +230,7 @@ class ServerGUI:
             self.stop_btn.config(state=tk.NORMAL)
 
             self.log_message("Server started successfully", '#50fa7b')
-            self.log_message("Waiting for client connections...", '#8be9fd')
+            self.log_message("Listening for connections...", '#8be9fd')
 
         except Exception as e:
             self.log_message(f"ERROR: Failed to start server: {e}", '#ff5555')
