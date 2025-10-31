@@ -456,7 +456,7 @@ class ChatClient:
         )
         chat_label.pack(pady=5)
 
-        # Chat display - fixed height to show input box
+        # Chat display - reduced height to make room for input
         self.chat_display = scrolledtext.ScrolledText(
             chat_panel,
             font=("Courier", 11),
@@ -467,7 +467,7 @@ class ChatClient:
             wrap=tk.WORD,
             relief=tk.FLAT,
             highlightthickness=0,
-            height=18  # Fixed height instead of expand=True
+            height=16  # Reduced to 16 to make room for input
         )
         self.chat_display.pack(padx=5, pady=5, fill=tk.BOTH)
 
@@ -478,16 +478,16 @@ class ChatClient:
         self.chat_display.tag_config("dm", foreground=self.DM_COLOR)
         self.chat_display.tag_config("text", foreground=self.TEXT_COLOR)
 
-        # Input frame - add bottom padding to prevent clipping
-        input_frame = tk.Frame(self.chat_view_frame, bg=self.BG_COLOR)
-        input_frame.pack(fill=tk.X, pady=(10, 10))
+        # Input frame - pack inside chat_panel (not chat_view_frame)
+        input_frame = tk.Frame(chat_panel, bg=self.PANEL_COLOR)
+        input_frame.pack(fill=tk.X, padx=5, pady=(5, 10))
 
         # Terminal-style prompt
         prompt_label = tk.Label(
             input_frame,
             text=">>>",
             font=("Courier", 12, "bold"),
-            bg=self.BG_COLOR,
+            bg=self.PANEL_COLOR,
             fg=self.PROMPT_COLOR
         )
         prompt_label.pack(side=tk.LEFT, padx=(0, 5))
@@ -593,7 +593,7 @@ class ChatClient:
         )
         msg_header.pack(pady=5)
 
-        # Message display area
+        # Message display area - reduced expansion to show input
         self.inbox_msg_display = scrolledtext.ScrolledText(
             right_frame,
             font=("Courier", 10),
@@ -602,24 +602,25 @@ class ChatClient:
             state=tk.DISABLED,
             wrap=tk.WORD,
             relief=tk.FLAT,
-            highlightthickness=0
+            highlightthickness=0,
+            height=16  # Fixed height to ensure input shows
         )
-        self.inbox_msg_display.pack(padx=5, pady=5, fill=tk.BOTH, expand=True)
+        self.inbox_msg_display.pack(padx=5, pady=5, fill=tk.BOTH)
 
         # Configure tags for inbox messages
         self.inbox_msg_display.tag_config("sent", foreground="#8be9fd")  # Cyan for sent
         self.inbox_msg_display.tag_config("received", foreground="#50fa7b")  # Green for received
         self.inbox_msg_display.tag_config("time", foreground=self.PROMPT_COLOR)
 
-        # Input area for replies - add bottom padding to prevent clipping
-        input_frame = tk.Frame(self.inbox_view_frame, bg=self.BG_COLOR)
-        input_frame.pack(fill=tk.X, pady=(10, 10))
+        # Input area for replies - pack inside right_frame (not inbox_view_frame)
+        input_frame = tk.Frame(right_frame, bg=self.PANEL_COLOR)
+        input_frame.pack(fill=tk.X, padx=5, pady=(5, 10))
 
         prompt_label = tk.Label(
             input_frame,
             text=">>>",
             font=("Courier", 12, "bold"),
-            bg=self.BG_COLOR,
+            bg=self.PANEL_COLOR,
             fg=self.PROMPT_COLOR
         )
         prompt_label.pack(side=tk.LEFT, padx=(0, 5))
