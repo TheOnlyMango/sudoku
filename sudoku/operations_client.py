@@ -21,15 +21,19 @@ class OperationsClient:
         self.current_operation = None
         self.operations_data = {}  # Initialize operations data dict
 
-        # Retro Cyberpunk colors
-        self.BG_COLOR = "#0a0e27"  # Dark blue-black
-        self.PANEL_COLOR = "#1a1f3a"  # Slightly lighter panel
-        self.ACCENT_COLOR = "#00ff41"  # Matrix green
-        self.SECONDARY_COLOR = "#ff006e"  # Cyberpunk pink
-        self.TEXT_COLOR = "#00d9ff"  # Cyan text
-        self.BUTTON_COLOR = "#7b2cbf"  # Purple button
-        self.ERROR_COLOR = "#ff006e"  # Pink for errors
-        self.SUCCESS_COLOR = "#00ff41"  # Green for success
+        # Match chat client colors (90s hacker Dracula theme)
+        self.BG_COLOR = "#282a36"
+        self.PANEL_COLOR = "#0a0e14"  # Darker for terminal feel with CRT glow
+        self.TEXT_COLOR = "#f8f8f2"  # White/light gray for message text (terminal style)
+        self.USER_COLOR = "#8be9fd"  # Cyan for usernames
+        self.SYSTEM_COLOR = "#ffb86c"  # Orange for system messages
+        self.INPUT_BG = "#1a1f2e"  # Darker input with subtle glow
+        self.BUTTON_COLOR = "#bd93f9"
+        self.PROMPT_COLOR = "#6272a4"  # Muted blue for prompt symbols
+        self.ACCENT_COLOR = "#50fa7b"  # Green for highlights
+        self.SECONDARY_COLOR = "#ff79c6"  # Pink for special items
+        self.ERROR_COLOR = "#ff5555"  # Red for errors
+        self.SUCCESS_COLOR = "#50fa7b"  # Green for success
 
         # Status indicator label reference
         self.status_label = None
@@ -56,44 +60,117 @@ class OperationsClient:
         self.current_view = "list"
         self.clear_main_frame()
 
-        # Centered title at top
-        title_frame = tk.Frame(self.main_frame, bg=self.BG_COLOR)
-        title_frame.pack(pady=(0, 10), fill=tk.X)
-
-        title = tk.Label(
-            title_frame,
-            text="░▒▓█ OPERATIONS DATABASE █▓▒░",
-            font=("Courier", 12, "bold"),
+        # Retro ASCII art title bar (match chat style)
+        title_bar = tk.Label(
+            self.main_frame,
+            text="╔═══════════════════════════════════════════════════════════╗\n"
+                 "║  ░▒▓█ S H N E T  S E C U R E  T E R M I N A L █▓▒░  ║\n"
+                 "╚═══════════════════════════════════════════════════════════╝",
+            font=("Courier", 8, "bold"),
             bg=self.BG_COLOR,
-            fg=self.ACCENT_COLOR
+            fg=self.BUTTON_COLOR,
+            justify=tk.CENTER
         )
-        title.pack(anchor=tk.CENTER)
+        title_bar.pack(pady=(0, 2))
 
-        # Centered buttons underneath header
+        # Tunnel status message (match chat style)
+        tunnel_label = tk.Label(
+            self.main_frame,
+            text=">> OPERATIONS DATABASE ACCESSED <<",
+            font=("Courier", 8, "bold"),
+            bg=self.BG_COLOR,
+            fg=self.SYSTEM_COLOR
+        )
+        tunnel_label.pack(pady=(0, 5))
+
+        # Header with buttons (match chat style - left and right aligned)
         header_frame = tk.Frame(self.main_frame, bg=self.BG_COLOR)
-        header_frame.pack(pady=(0, 10))
+        header_frame.pack(pady=(0, 10), fill=tk.X)
 
-        # ABORT button
-        abort_btn = self._create_button(
-            header_frame, "ABORT", self._on_abort,
-            bg="#8b0000", fg="#ffffff", width=12
+        # ABORT button - red circle with 3D effect in top left (match chat)
+        abort_btn = tk.Button(
+            header_frame,
+            text="ABORT",
+            command=self._on_abort,
+            font=("Courier", 8, "bold"),
+            bg="#8b0000",  # Dark red
+            fg="#ffffff",
+            activebackground="#ff0000",
+            activeforeground="#ffffff",
+            width=8,
+            height=1,
+            relief=tk.RAISED,
+            bd=4,
+            cursor="hand2"
         )
         abort_btn.pack(side=tk.LEFT, padx=5)
 
-        # OPERATIONS button (current - highlighted)
-        ops_btn = self._create_button(
-            header_frame, "OPERATIONS", None,
-            bg=self.BUTTON_COLOR, fg=self.ACCENT_COLOR, width=12
-        )
-        ops_btn.pack(side=tk.LEFT, padx=5)
+        # Add 3D shading effect with hover
+        def on_abort_enter(e):
+            abort_btn.config(bg="#ff0000", relief=tk.RAISED)
+        def on_abort_leave(e):
+            abort_btn.config(bg="#8b0000", relief=tk.RAISED)
+        abort_btn.bind("<Enter>", on_abort_enter)
+        abort_btn.bind("<Leave>", on_abort_leave)
 
-        # CHAT button
+        # CHAT button - on RIGHT side to match chat layout
         if self.chat_callback:
-            chat_btn = self._create_button(
-                header_frame, "CHAT", self.chat_callback,
-                bg=self.BUTTON_COLOR, fg=self.TEXT_COLOR, width=12
+            chat_btn = tk.Button(
+                header_frame,
+                text="CHAT",
+                command=self.chat_callback,
+                font=("Courier", 8, "bold"),
+                bg="#00b4d8",  # Cyan blue
+                fg="#00ff41",  # Matrix green
+                activebackground="#00ff41",
+                activeforeground="#00b4d8",
+                width=10,
+                height=1,
+                relief=tk.RAISED,
+                bd=4,
+                cursor="hand2"
             )
-            chat_btn.pack(side=tk.LEFT, padx=5)
+            chat_btn.pack(side=tk.RIGHT, padx=5)
+
+            # Add hover effect
+            def on_chat_enter(e):
+                chat_btn.config(bg="#00ff41", fg="#00b4d8", relief=tk.RAISED)
+            def on_chat_leave(e):
+                chat_btn.config(bg="#00b4d8", fg="#00ff41", relief=tk.RAISED)
+            chat_btn.bind("<Enter>", on_chat_enter)
+            chat_btn.bind("<Leave>", on_chat_leave)
+
+        # INBOX button - on RIGHT side (disabled in operations, but shown for consistency)
+        inbox_btn = tk.Button(
+            header_frame,
+            text="INBOX",
+            command=None,  # Disabled in operations
+            font=("Courier", 8, "bold"),
+            bg="#6272a4",  # Muted/disabled color
+            fg="#44475a",
+            width=10,
+            height=1,
+            relief=tk.RAISED,
+            bd=4,
+            state=tk.DISABLED
+        )
+        inbox_btn.pack(side=tk.RIGHT, padx=5)
+
+        # OPERATIONS button (current - highlighted) - on RIGHT side
+        ops_btn = tk.Button(
+            header_frame,
+            text="OPERATIONS",
+            command=None,
+            font=("Courier", 8, "bold"),
+            bg="#7b2cbf",  # Purple - highlighted as current
+            fg="#00ff41",  # Matrix green
+            width=12,
+            height=1,
+            relief=tk.SUNKEN,  # Sunken to show it's active
+            bd=4,
+            cursor="hand2"
+        )
+        ops_btn.pack(side=tk.RIGHT, padx=5)
 
         # Create new operation form
         form_frame = tk.Frame(self.main_frame, bg=self.PANEL_COLOR, relief=tk.RIDGE, bd=3,
@@ -113,8 +190,8 @@ class OperationsClient:
         name_frame.pack(pady=3, padx=10, fill=tk.X)
         tk.Label(name_frame, text="OP NAME:", font=("Courier", 9), bg=self.PANEL_COLOR,
                  fg=self.TEXT_COLOR, width=12, anchor=tk.W).pack(side=tk.LEFT)
-        self.op_name_entry = tk.Entry(name_frame, font=("Courier", 9), bg=self.BG_COLOR,
-                                       fg=self.ACCENT_COLOR, insertbackground=self.ACCENT_COLOR)
+        self.op_name_entry = tk.Entry(name_frame, font=("Courier", 9), bg=self.INPUT_BG,
+                                       fg=self.TEXT_COLOR, insertbackground=self.TEXT_COLOR, relief=tk.FLAT)
         self.op_name_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
 
         # Password
@@ -122,8 +199,8 @@ class OperationsClient:
         pass_frame.pack(pady=3, padx=10, fill=tk.X)
         tk.Label(pass_frame, text="PASSWORD:", font=("Courier", 9), bg=self.PANEL_COLOR,
                  fg=self.TEXT_COLOR, width=12, anchor=tk.W).pack(side=tk.LEFT)
-        self.op_pass_entry = tk.Entry(pass_frame, font=("Courier", 9), bg=self.BG_COLOR,
-                                       fg=self.ACCENT_COLOR, insertbackground=self.ACCENT_COLOR, show="*")
+        self.op_pass_entry = tk.Entry(pass_frame, font=("Courier", 9), bg=self.INPUT_BG,
+                                       fg=self.TEXT_COLOR, insertbackground=self.TEXT_COLOR, show="*", relief=tk.FLAT)
         self.op_pass_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
 
         # Description
@@ -131,8 +208,8 @@ class OperationsClient:
         desc_frame.pack(pady=3, padx=10, fill=tk.X)
         tk.Label(desc_frame, text="DESCRIPTION:", font=("Courier", 9), bg=self.PANEL_COLOR,
                  fg=self.TEXT_COLOR, width=12, anchor=tk.W).pack(side=tk.LEFT)
-        self.op_desc_entry = tk.Entry(desc_frame, font=("Courier", 9), bg=self.BG_COLOR,
-                                       fg=self.ACCENT_COLOR, insertbackground=self.ACCENT_COLOR)
+        self.op_desc_entry = tk.Entry(desc_frame, font=("Courier", 9), bg=self.INPUT_BG,
+                                       fg=self.TEXT_COLOR, insertbackground=self.TEXT_COLOR, relief=tk.FLAT)
         self.op_desc_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
 
         # Create button
@@ -220,31 +297,123 @@ class OperationsClient:
         self.current_operation = op_name
         self.clear_main_frame()
 
-        # Header with buttons
+        # Retro ASCII art title bar (match chat style)
+        title_bar = tk.Label(
+            self.main_frame,
+            text="╔═══════════════════════════════════════════════════════════╗\n"
+                 "║  ░▒▓█ S H N E T  S E C U R E  T E R M I N A L █▓▒░  ║\n"
+                 "╚═══════════════════════════════════════════════════════════╝",
+            font=("Courier", 8, "bold"),
+            bg=self.BG_COLOR,
+            fg=self.BUTTON_COLOR,
+            justify=tk.CENTER
+        )
+        title_bar.pack(pady=(0, 2))
+
+        # Tunnel status message (match chat style)
+        tunnel_label = tk.Label(
+            self.main_frame,
+            text=f">> OPERATION: {op_name.upper()} <<",
+            font=("Courier", 8, "bold"),
+            bg=self.BG_COLOR,
+            fg=self.SYSTEM_COLOR
+        )
+        tunnel_label.pack(pady=(0, 5))
+
+        # Header with buttons (match chat style)
         header_frame = tk.Frame(self.main_frame, bg=self.BG_COLOR)
         header_frame.pack(pady=(0, 10), fill=tk.X)
 
-        # ABORT button
-        abort_btn = self._create_button(
-            header_frame, "ABORT", self._on_abort,
-            bg="#8b0000", fg="#ffffff", width=8
+        # ABORT button on LEFT
+        abort_btn = tk.Button(
+            header_frame,
+            text="ABORT",
+            command=self._on_abort,
+            font=("Courier", 8, "bold"),
+            bg="#8b0000",
+            fg="#ffffff",
+            activebackground="#ff0000",
+            activeforeground="#ffffff",
+            width=8,
+            height=1,
+            relief=tk.RAISED,
+            bd=4,
+            cursor="hand2"
         )
         abort_btn.pack(side=tk.LEFT, padx=5)
 
-        # OPERATIONS button
-        ops_btn = self._create_button(
-            header_frame, "OPERATIONS", self.show_operations_list,
-            bg=self.BUTTON_COLOR, fg=self.TEXT_COLOR, width=12
-        )
-        ops_btn.pack(side=tk.LEFT, padx=5)
+        # Add hover effect
+        def on_abort_enter(e):
+            abort_btn.config(bg="#ff0000", relief=tk.RAISED)
+        def on_abort_leave(e):
+            abort_btn.config(bg="#8b0000", relief=tk.RAISED)
+        abort_btn.bind("<Enter>", on_abort_enter)
+        abort_btn.bind("<Leave>", on_abort_leave)
 
-        # CHAT button
+        # CHAT button on RIGHT
         if self.chat_callback:
-            chat_btn = self._create_button(
-                header_frame, "CHAT", self.chat_callback,
-                bg=self.BUTTON_COLOR, fg=self.TEXT_COLOR, width=8
+            chat_btn = tk.Button(
+                header_frame,
+                text="CHAT",
+                command=self.chat_callback,
+                font=("Courier", 8, "bold"),
+                bg="#00b4d8",
+                fg="#00ff41",
+                activebackground="#00ff41",
+                activeforeground="#00b4d8",
+                width=10,
+                height=1,
+                relief=tk.RAISED,
+                bd=4,
+                cursor="hand2"
             )
-            chat_btn.pack(side=tk.LEFT, padx=5)
+            chat_btn.pack(side=tk.RIGHT, padx=5)
+
+            def on_chat_enter(e):
+                chat_btn.config(bg="#00ff41", fg="#00b4d8", relief=tk.RAISED)
+            def on_chat_leave(e):
+                chat_btn.config(bg="#00b4d8", fg="#00ff41", relief=tk.RAISED)
+            chat_btn.bind("<Enter>", on_chat_enter)
+            chat_btn.bind("<Leave>", on_chat_leave)
+
+        # INBOX button (disabled) on RIGHT
+        inbox_btn = tk.Button(
+            header_frame,
+            text="INBOX",
+            command=None,
+            font=("Courier", 8, "bold"),
+            bg="#6272a4",
+            fg="#44475a",
+            width=10,
+            height=1,
+            relief=tk.RAISED,
+            bd=4,
+            state=tk.DISABLED
+        )
+        inbox_btn.pack(side=tk.RIGHT, padx=5)
+
+        # OPERATIONS button on RIGHT (can click to go back to list)
+        ops_btn = tk.Button(
+            header_frame,
+            text="OPERATIONS",
+            command=self.show_operations_list,
+            font=("Courier", 8, "bold"),
+            bg="#7b2cbf",
+            fg="#00ff41",
+            width=12,
+            height=1,
+            relief=tk.RAISED,
+            bd=4,
+            cursor="hand2"
+        )
+        ops_btn.pack(side=tk.RIGHT, padx=5)
+
+        def on_ops_enter(e):
+            ops_btn.config(bg="#00ff41", fg="#7b2cbf", relief=tk.RAISED)
+        def on_ops_leave(e):
+            ops_btn.config(bg="#7b2cbf", fg="#00ff41", relief=tk.RAISED)
+        ops_btn.bind("<Enter>", on_ops_enter)
+        ops_btn.bind("<Leave>", on_ops_leave)
 
         # Operation title
         title_frame = tk.Frame(self.main_frame, bg=self.PANEL_COLOR, relief=tk.RIDGE, bd=3,
@@ -294,9 +463,9 @@ class OperationsClient:
         comment_frame.pack(pady=5, padx=10, fill=tk.BOTH)
         tk.Label(comment_frame, text="COMMENT:", font=("Courier", 9), bg=self.PANEL_COLOR,
                  fg=self.TEXT_COLOR).pack(anchor=tk.W)
-        self.comment_text = tk.Text(comment_frame, font=("Courier", 9), bg=self.BG_COLOR,
-                                     fg=self.ACCENT_COLOR, insertbackground=self.ACCENT_COLOR,
-                                     height=3, wrap=tk.WORD)
+        self.comment_text = tk.Text(comment_frame, font=("Courier", 9), bg=self.INPUT_BG,
+                                     fg=self.TEXT_COLOR, insertbackground=self.TEXT_COLOR,
+                                     height=3, wrap=tk.WORD, relief=tk.FLAT)
         self.comment_text.pack(fill=tk.BOTH, expand=True)
 
         # File upload

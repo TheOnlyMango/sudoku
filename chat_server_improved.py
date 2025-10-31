@@ -547,6 +547,8 @@ class ImprovedChatServer:
         self.running = True
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        # Set timeout so accept() doesn't block indefinitely - allows graceful shutdown
+        self.server_socket.settimeout(1.0)
 
         try:
             self.server_socket.bind((self.host, self.port))
@@ -565,6 +567,9 @@ class ImprovedChatServer:
                     thread = threading.Thread(target=self.handle_client, args=(client_socket, address))
                     thread.daemon = True
                     thread.start()
+                except socket.timeout:
+                    # Timeout is expected - just check if we should keep running
+                    continue
                 except Exception as e:
                     if self.running:
                         chat_logger.error(f"Failed to accept connection: {e}")

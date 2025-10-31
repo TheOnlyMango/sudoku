@@ -477,9 +477,9 @@ class ChatClient:
         self.chat_display.tag_config("dm", foreground=self.DM_COLOR)
         self.chat_display.tag_config("text", foreground=self.TEXT_COLOR)
 
-        # Input frame
+        # Input frame - add bottom padding to prevent clipping
         input_frame = tk.Frame(self.chat_view_frame, bg=self.BG_COLOR)
-        input_frame.pack(fill=tk.X, pady=(10, 0))
+        input_frame.pack(fill=tk.X, pady=(10, 10))
 
         # Terminal-style prompt
         prompt_label = tk.Label(
@@ -610,9 +610,9 @@ class ChatClient:
         self.inbox_msg_display.tag_config("received", foreground="#50fa7b")  # Green for received
         self.inbox_msg_display.tag_config("time", foreground=self.PROMPT_COLOR)
 
-        # Input area for replies
+        # Input area for replies - add bottom padding to prevent clipping
         input_frame = tk.Frame(self.inbox_view_frame, bg=self.BG_COLOR)
-        input_frame.pack(fill=tk.X, pady=(10, 0))
+        input_frame.pack(fill=tk.X, pady=(10, 10))
 
         prompt_label = tk.Label(
             input_frame,
