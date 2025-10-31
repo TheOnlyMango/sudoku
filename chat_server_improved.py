@@ -19,9 +19,11 @@ import json
 import time
 import base64
 import os
+import uuid
 from datetime import datetime
 from typing import Dict, Optional, Tuple
 from operations_db import OperationsDB
+from auth_db import AuthDB
 from security_config import (
     TokenManager, RateLimiter, validate_file_upload, sanitize_filename,
     MAX_BUFFER_SIZE, MAX_MESSAGE_LENGTH
@@ -50,7 +52,7 @@ class ImprovedChatServer:
         self.host = host if host is not None else config_host
         self.port = port if port is not None else config_port
         self.use_encryption = use_encryption
-        self.clients: Dict[socket.socket, Tuple[str, str]] = {}  # socket -> (username, token)
+        self.clients: Dict[socket.socket, Tuple[str, str, bool]] = {}  # socket -> (username, token, is_anon)
         self.running = False
         self.server_socket = None
 
@@ -58,14 +60,18 @@ class ImprovedChatServer:
         self.token_manager = TokenManager()
         self.rate_limiter = RateLimiter()
 
-        # Initialize database pools
+        # Initialize databases
         self.chat_db_pool = get_pool('chat_messages.db', pool_size=5)
         self.ops_db = OperationsDB('operations.db')
+        self.auth_db = AuthDB('auth.db')
+
+        # Session management
+        self.session_id = str(uuid.uuid4())  # Unique ID for this server session
 
         # Initialize chat database schema
         self._init_chat_database()
 
-        chat_logger.info("Server initialized")
+        chat_logger.info(f"Server initialized with session ID: {self.session_id}")
 
     def _init_chat_database(self):
         """Initialize chat database schema."""
@@ -143,7 +149,7 @@ class ImprovedChatServer:
 
     def send_to_user(self, username: str, message: str) -> bool:
         """Send message to specific user."""
-        for client_socket, (client_username, _) in self.clients.items():
+        for client_socket, (client_username, _, _) in self.clients.items():
             if client_username == username:
                 try:
                     client_socket.send((message + '\n').encode('utf-8'))
@@ -170,7 +176,7 @@ class ImprovedChatServer:
             username = username_response
 
             # Check if username is taken
-            existing_usernames = {u for u, _ in self.clients.values()}
+            existing_usernames = {u for u, _, _ in self.clients.values()}
             while username in existing_usernames:
                 client_socket.send(b'USERNAME_TAKEN:\n')
                 username = client_socket.recv(1024).decode('utf-8').strip()
@@ -180,8 +186,8 @@ class ImprovedChatServer:
             # Generate authentication token
             token = self.token_manager.generate_token(username)
 
-            # Add client
-            self.clients[client_socket] = (username, token)
+            # Add client (is_anon = False for now, will be updated with auth system)
+            self.clients[client_socket] = (username, token, False)
 
             chat_logger.info(f"USER LOGIN: {username} from {address[0]}")
 
@@ -263,6 +269,15 @@ class ImprovedChatServer:
             elif data.startswith('DM:'):
                 self._handle_direct_message(client_socket, username, data[3:])
 
+            elif data.startswith('DM_INBOX:'):
+                self._handle_dm_inbox(client_socket, username)
+
+            elif data.startswith('DM_CONVERSATION:'):
+                self._handle_dm_conversation(client_socket, username, data[16:])
+
+            elif data.startswith('DM_MARK_READ:'):
+                self._handle_dm_mark_read(client_socket, username, data[13:])
+
             elif data.startswith('OP_LIST:'):
                 self._handle_op_list(client_socket)
 
@@ -306,6 +321,9 @@ class ImprovedChatServer:
             client_socket.send(b'ERROR:Message too long\n')
             return
 
+        # Store message in chat history
+        self.auth_db.add_chat_message(username, message, self.session_id)
+
         chat_logger.info(f"CHAT MESSAGE: {username} ({len(message)} chars)")
         self.broadcast(f'MSG:{username}:{message}', client_socket)
 
@@ -325,10 +343,36 @@ class ImprovedChatServer:
             client_socket.send(f'ERROR:{error_msg}\n'.encode('utf-8'))
             return
 
-        # Try to send, if offline store it
-        if not self.send_to_user(recipient, f'DM:{username}:{message}'):
-            self.store_offline_message(recipient, username, message)
-            client_socket.send(f'INFO:Message to {recipient} stored (offline)\n'.encode('utf-8'))
+        # Store DM in database
+        success, msg = self.auth_db.send_dm(username, recipient, message)
+        if not success:
+            client_socket.send(f'ERROR:{msg}\n'.encode('utf-8'))
+            return
+
+        # Try to send if recipient is online
+        online_sent = self.send_to_user(recipient, f'DM:{username}:{message}')
+
+        if online_sent:
+            client_socket.send(f'DM_SENT:{recipient}\n'.encode('utf-8'))
+        else:
+            client_socket.send(f'DM_SENT:{recipient} (offline)\n'.encode('utf-8'))
+
+    def _handle_dm_inbox(self, client_socket: socket.socket, username: str):
+        """Handle DM inbox request."""
+        inbox = self.auth_db.get_inbox(username)
+        response = json.dumps(inbox)
+        client_socket.send(f'DM_INBOX:{response}\n'.encode('utf-8'))
+
+    def _handle_dm_conversation(self, client_socket: socket.socket, username: str, other_user: str):
+        """Handle DM conversation request."""
+        conversation = self.auth_db.get_conversation(username, other_user)
+        response = json.dumps(conversation)
+        client_socket.send(f'DM_CONVERSATION:{response}\n'.encode('utf-8'))
+
+    def _handle_dm_mark_read(self, client_socket: socket.socket, username: str, sender: str):
+        """Handle marking conversation as read."""
+        self.auth_db.mark_conversation_read(username, sender)
+        client_socket.send(b'DM_MARKED_READ:OK\n')
 
     def _handle_op_list(self, client_socket: socket.socket):
         """Handle operation list request."""
@@ -451,7 +495,7 @@ class ImprovedChatServer:
     def remove_client(self, client_socket: socket.socket):
         """Remove client from active connections."""
         if client_socket in self.clients:
-            username, token = self.clients[client_socket]
+            username, token, _ = self.clients[client_socket]
             del self.clients[client_socket]
             try:
                 client_socket.close()
@@ -492,8 +536,16 @@ class ImprovedChatServer:
             self.stop()
 
     def stop(self):
-        """Stop the chat server."""
-        chat_logger.info("SERVER STOPPING: Closing all connections...")
+        """Stop the chat server and archive chat history."""
+        chat_logger.info("SERVER STOPPING: Archiving chat session...")
+
+        # Archive current chat session
+        try:
+            self.auth_db.archive_session(self.session_id)
+            chat_logger.info(f"Session {self.session_id} archived successfully")
+        except Exception as e:
+            chat_logger.error(f"Failed to archive session: {e}")
+
         self.running = False
 
         # Close all client connections
@@ -509,6 +561,12 @@ class ImprovedChatServer:
                 self.server_socket.close()
             except Exception:
                 pass
+
+        # Close auth database
+        try:
+            self.auth_db.close()
+        except Exception:
+            pass
 
         # Close database pools
         from db_pool import close_all_pools

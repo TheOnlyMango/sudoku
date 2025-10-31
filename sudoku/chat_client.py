@@ -12,6 +12,8 @@ from datetime import datetime
 # Add parent directory to path to import config reader
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from chat_config_reader import get_config
+from auth_ui import AuthUI
+from inbox_ui import InboxUI
 
 
 class ChatClient:
@@ -38,8 +40,11 @@ class ChatClient:
         self.server_port = server_port if server_port is not None else config_port
         self.socket = None
         self.username = None
+        self.password = None  # Store password for authentication
+        self.is_anon = False  # Track if user is anonymous
+        self.token = None  # Auth token from server
         self.running = False
-        self.users = set()
+        self.users = {}  # {username: is_anon} - track anon status
         self.exit_callback = exit_callback
         self.operations_callback = operations_callback
         self.is_hidden = False  # Track if chat is just hidden (not disconnected)
@@ -55,6 +60,7 @@ class ChatClient:
         self.PANEL_COLOR = "#0a0e14"  # Darker for terminal feel with CRT glow
         self.TEXT_COLOR = "#f8f8f2"  # White/light gray for message text (terminal style)
         self.USER_COLOR = "#8be9fd"  # Cyan for usernames
+        self.ANON_COLOR = "#ff5555"  # RED for anonymous users
         self.SYSTEM_COLOR = "#ffb86c"  # Orange for system messages
         self.DM_COLOR = "#ff79c6"  # Pink for DMs
         self.INPUT_BG = "#1a1f2e"  # Darker input with subtle glow
@@ -143,6 +149,33 @@ class ChatClient:
             abort_btn.config(bg="#8b0000", relief=tk.RAISED)
         abort_btn.bind("<Enter>", on_abort_enter)
         abort_btn.bind("<Leave>", on_abort_leave)
+
+        # INBOX button - pink with cyberpunk style - pack on RIGHT side
+        # Store reference so we can hide it for anon users
+        self.inbox_btn = tk.Button(
+            header_frame,
+            text="INBOX",
+            command=self.show_inbox,
+            font=("Courier", 8, "bold"),
+            bg="#ff006e",  # Hot pink
+            fg="#00ff41",  # Matrix green
+            activebackground="#00ff41",
+            activeforeground="#ff006e",
+            width=10,
+            height=1,
+            relief=tk.RAISED,
+            bd=4,
+            cursor="hand2"
+        )
+        self.inbox_btn.pack(side=tk.RIGHT, padx=5)
+
+        # Add hover effect
+        def on_inbox_enter(e):
+            self.inbox_btn.config(bg="#00ff41", fg="#ff006e", relief=tk.RAISED)
+        def on_inbox_leave(e):
+            self.inbox_btn.config(bg="#ff006e", fg="#00ff41", relief=tk.RAISED)
+        self.inbox_btn.bind("<Enter>", on_inbox_enter)
+        self.inbox_btn.bind("<Leave>", on_inbox_leave)
 
         # OPERATIONS button - purple with cyberpunk style - pack on RIGHT side for visibility
         if self.operations_callback:
@@ -401,13 +434,14 @@ class ChatClient:
         if self.running:
             self.typing_timer = self.root.after(500, self.update_typing_display)
 
-    def display_message(self, message, tag="text", username=None):
+    def display_message(self, message, tag="text", username=None, is_history=False):
         """Display message in chat window with right-aligned timestamp.
 
         Args:
             message: The message text
             tag: Color tag for the message
             username: Username to display (if None, extracts from message or uses "SYSTEM")
+            is_history: True if this is a history message (don't update timestamp)
         """
         self.chat_display.config(state=tk.NORMAL)
         timestamp = datetime.now().strftime("%H:%M")  # Remove seconds
@@ -421,10 +455,18 @@ class ChatClient:
             # Oh-my-zsh terminal style: ┌─[username@shnet][HH:MM]
             #                            ~$ message goes here
 
-            # Get per-user color and create tag if needed
-            user_color = self.get_user_color(username)
+            # Check if user is anonymous - use RED color if they are
+            is_anon = self.users.get(username, False)
+            if is_anon:
+                user_color = self.ANON_COLOR
+            else:
+                user_color = self.get_user_color(username)
+
             user_tag = f"user_{username}"
             if user_tag not in self.chat_display.tag_names():
+                self.chat_display.tag_config(user_tag, foreground=user_color)
+            else:
+                # Update color in case anon status changed
                 self.chat_display.tag_config(user_tag, foreground=user_color)
 
             # First line: ┌─[username@shnet][HH:MM]
@@ -528,12 +570,33 @@ class ChatClient:
             self.update_status(f"CONNECTED AS {self.username.upper()}", 'green')
 
         elif message.startswith('USERLIST:'):
-            users = message[9:].split(',')
-            self.update_user_list(users)
+            # Format: USERLIST:user1:0,user2:1,user3:0  (0=normal, 1=anon)
+            user_data = message[9:].split(',')
+            users_dict = {}
+            for item in user_data:
+                if ':' in item:
+                    user, is_anon = item.split(':', 1)
+                    users_dict[user] = (is_anon == '1')
+                else:
+                    users_dict[item] = False  # Fallback for old format
+            self.users = users_dict
+            self.update_user_list(list(users_dict.keys()))
 
         elif message.startswith('JOIN:'):
-            username = message[5:]
-            self.display_message(f"SYSTEM: {username} has joined", "system")
+            # Format: JOIN:username:is_anon
+            parts = message[5:].split(':')
+            username = parts[0]
+            is_anon = (parts[1] == '1') if len(parts) > 1 else False
+            self.users[username] = is_anon
+            anon_label = " (ANON)" if is_anon else ""
+            self.display_message(f"SYSTEM: {username}{anon_label} has joined", "system")
+
+        elif message.startswith('HISTORY:'):
+            # Format: HISTORY:username:timestamp:message
+            parts = message[8:].split(':', 2)
+            if len(parts) == 3:
+                username, timestamp, msg = parts
+                self.display_message(msg, "text", username=username, is_history=True)
 
         elif message.startswith('LEAVE:'):
             username = message[6:]
@@ -575,26 +638,50 @@ class ChatClient:
             if username != self.username:
                 self.typing_users[username] = time.time()
 
-    def connect(self, username):
-        """Connect to the chat server."""
+    def connect(self, username, password, is_anon):
+        """Connect to the chat server with authentication."""
         self.username = username
+        self.password = password
+        self.is_anon = is_anon
 
         try:
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.socket.connect((self.server_host, self.server_port))
             self.running = True
 
-            # Wait for username prompt
+            # Wait for auth request
             data = self.socket.recv(1024).decode('utf-8')
 
-            # Send username
-            self.socket.send((username + '\n').encode('utf-8'))
-
-            # Check if accepted
-            response = self.socket.recv(1024).decode('utf-8')
-            if 'USERNAME_TAKEN' in response:
+            if 'AUTH_REQUIRED' not in data:
                 self.socket.close()
-                return False
+                return False, "Server error: No auth request"
+
+            # Send authentication
+            if is_anon:
+                auth_msg = f'AUTH_ANON:{username}\n'
+            else:
+                auth_msg = f'AUTH:{username}:{password}\n'
+
+            self.socket.send(auth_msg.encode('utf-8'))
+
+            # Check response
+            response = self.socket.recv(1024).decode('utf-8')
+
+            if 'AUTH_FAILED' in response:
+                self.socket.close()
+                error_msg = response.split(':', 1)[1] if ':' in response else "Authentication failed"
+                return False, error_msg
+
+            if 'WELCOME' in response:
+                # Parse: WELCOME:username:token:is_anon
+                parts = response.split(':')
+                if len(parts) >= 4:
+                    self.token = parts[2]
+                    self.is_anon = parts[3].strip() == 'True'
+
+                # Hide inbox button for anonymous users
+                if self.is_anon and hasattr(self, 'inbox_btn'):
+                    self.inbox_btn.pack_forget()
 
             # Start receive thread
             receive_thread = threading.Thread(target=self.receive_messages)
@@ -604,12 +691,17 @@ class ChatClient:
             # Start typing indicator update loop
             self.update_typing_display()
 
-            return True
+            return True, "Connected"
 
         except Exception as e:
             # Show connection error in status bar only
             self.update_status(f"CONNECTION FAILED", 'red')
-            return False
+            return False, str(e)
+
+    def show_inbox(self):
+        """Show DM inbox."""
+        inbox = InboxUI(self.root, self)
+        inbox.show_inbox()
 
     def _on_abort(self):
         """Handle ABORT button click."""

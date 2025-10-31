@@ -7,8 +7,13 @@ from PIL import Image, ImageDraw, ImageFont, ImageTk
 from sudoku.board import SudokuBoard
 from sudoku.solver import SudokuSolver
 from sudoku.generator import SudokuGenerator, Difficulty
-from sudoku.chat_client import ChatClient, show_login_dialog
+from sudoku.chat_client import ChatClient
 from sudoku.operations_client import OperationsClient
+import sys
+import os
+# Add parent directory to path for auth_ui import
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from auth_ui import AuthUI
 
 
 class DraculaDialog:
@@ -843,11 +848,30 @@ class SudokuGUI:
                 self.status_var.set("◈ Error highlighting: OFF")
 
     def launch_chat(self):
-        """Launch the secret chat interface."""
-        # Get username from user
-        username = show_login_dialog(self.root)
-        if not username:
+        """Launch the secret chat interface with authentication."""
+        # Store auth credentials
+        auth_data = {'username': None, 'password': None, 'is_anon': False}
+
+        def on_auth_success(username, password, is_anon):
+            """Callback when authentication succeeds."""
+            auth_data['username'] = username
+            auth_data['password'] = password
+            auth_data['is_anon'] = is_anon
+
+        # Show authentication UI
+        auth_ui = AuthUI(self.root, on_auth_success)
+        auth_ui.show_auth_screen()
+
+        # Wait for auth window to close
+        self.root.wait_window(auth_ui.auth_window)
+
+        # Check if auth succeeded
+        if not auth_data['username']:
             return
+
+        username = auth_data['username']
+        password = auth_data['password']
+        is_anon = auth_data['is_anon']
 
         # Hide game elements
         self.main_frame.pack_forget()
@@ -861,11 +885,12 @@ class SudokuGUI:
                                       operations_callback=self.launch_operations)
         self.chat_client.create_ui()
 
-        # Connect to server
-        if not self.chat_client.connect(username):
+        # Connect to server (will use stored credentials)
+        success, message = self.chat_client.connect(username, password, is_anon)
+        if not success:
             # Connection failed, show error and return to game
             DraculaDialog.show_warning(self.root, "Connection Failed",
-                                      "Could not connect to chat server.\n\nCheck that server is running.")
+                                      f"Could not connect to chat server.\n\n{message}")
             self.chat_frame.pack_forget()
             self.chat_frame.destroy()
             self.main_frame.pack(fill=tk.BOTH, expand=True)
