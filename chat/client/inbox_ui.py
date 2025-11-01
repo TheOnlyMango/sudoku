@@ -372,7 +372,7 @@ class InboxUI:
         if self.chat_client.send_dm(self.current_conversation, message):
             # Clear input
             self.reply_entry.delete(0, tk.END)
-            # Note: Conversation will auto-refresh via callback triggered in send_dm()
+            # Note: Conversation will auto-refresh via callback triggered by server's DM_SAVED response
         else:
             messagebox.showerror("Error", "Failed to send message")
 
@@ -460,7 +460,7 @@ class InboxUI:
 
             if self.chat_client.send_dm(recipient, message):
                 dialog.destroy()
-                # Note: Inbox will auto-refresh via callback triggered in send_dm()
+                # Note: Inbox will auto-refresh via callback triggered by server's DM_SAVED response
             else:
                 messagebox.showerror("Error", "Failed to send message")
 
@@ -576,10 +576,11 @@ class InboxUI:
         """Callback when new DM arrives - update inbox in real-time.
 
         Args:
-            sender: Username who sent the DM
+            sender: Username who sent the DM (for incoming DMs, this is the sender; for outgoing, this is the recipient)
             message: Message content
         """
         # Use thread-safe GUI update
+        # Server now sends DM_SAVED confirmation AFTER saving, so no delay needed
         if self.inbox_window and self.inbox_window.winfo_exists():
             self.root.after(0, lambda: self._handle_new_dm(sender))
 
@@ -587,17 +588,7 @@ class InboxUI:
         """Handle new DM in GUI thread.
 
         Args:
-            sender: Username who sent the DM
-        """
-        # Brief delay to ensure server has processed and saved the message
-        # (Especially important for outgoing messages that trigger callback immediately)
-        self.root.after(100, lambda: self._do_refresh(sender))
-
-    def _do_refresh(self, sender):
-        """Actually perform the refresh after brief delay.
-
-        Args:
-            sender: Username who sent the DM
+            sender: Username who sent the DM (or recipient for outgoing DMs)
         """
         # Reload inbox to update conversation list (unread counts, etc.)
         self.load_inbox()

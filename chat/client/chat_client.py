@@ -1020,6 +1020,19 @@ class ChatClient:
             with self.response_lock:
                 self.pending_responses['DM_MARKED_READ'] = True
 
+        elif message.startswith('DM_SAVED:'):
+            # Server confirms DM was saved - trigger callbacks for inbox refresh
+            # Format: DM_SAVED:recipient
+            recipient = message[9:]
+            # Trigger DM callbacks for outgoing messages
+            for callback, sender_filter in self.dm_callbacks:
+                # For outgoing messages, pass recipient as "sender" so inbox knows which conversation to update
+                if sender_filter is None or sender_filter == recipient:
+                    try:
+                        callback(recipient, "")  # Empty message, just trigger refresh
+                    except Exception as e:
+                        print(f"Error in DM callback (DM_SAVED): {e}")
+
         elif message.startswith('DM_SENT:'):
             # DM sent confirmation
             self.update_status(message[8:], 'green')
@@ -1156,16 +1169,7 @@ class ChatClient:
 
         try:
             self.message_router.send(f'DM:{recipient}:{message}')
-
-            # Trigger DM callbacks for outgoing messages too (so inbox updates when YOU send)
-            for callback, sender_filter in self.dm_callbacks:
-                # For outgoing messages, pass recipient as "sender" so inbox knows which conversation to update
-                if sender_filter is None or sender_filter == recipient:
-                    try:
-                        callback(recipient, message)
-                    except Exception as e:
-                        print(f"Error in DM callback (outgoing): {e}")
-
+            # Note: Inbox refresh will be triggered by DM_SAVED response from server
             return True
         except:
             return False

@@ -393,6 +393,10 @@ class ImprovedChatServer:
             client_socket.send(f'ERROR:{msg}\n'.encode('utf-8'))
             return
 
+        # Send confirmation to sender that message was saved
+        # This triggers the sender's inbox to refresh
+        client_socket.send(f'DM_SAVED:{recipient}\n'.encode('utf-8'))
+
         # Try to send if recipient is online
         online_sent = self.send_to_user(recipient, f'DM:{username}:{message}')
 
