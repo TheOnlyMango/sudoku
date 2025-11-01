@@ -992,9 +992,8 @@ class ChatClient:
             self.chat_display.insert(tk.END, "~$ ", "prompt")
             self.chat_display.insert(tk.END, f"{message}\n", "text")
         else:
-            # System message format with retro symbols
+            # System message format (messages already have >> prefix)
             # Use right-aligned timestamp instead of padding to prevent wrapping
-            self.chat_display.insert(tk.END, "►►► ", "prompt")
             self.chat_display.insert(tk.END, message, tag)
             self.chat_display.insert(tk.END, "\n")
             self.chat_display.insert(tk.END, f"{timestamp_str}\n", "time_right")
