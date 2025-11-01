@@ -1148,9 +1148,13 @@ class OperationsClient:
         dialog.resizable(False, False)
 
         # Center dialog relative to parent window
-        dialog.update_idletasks()  # Ensure geometry is calculated
-        parent_x = self.root.winfo_x()
-        parent_y = self.root.winfo_y()
+        # Update both dialog and parent to ensure accurate positioning
+        self.root.update_idletasks()
+        dialog.update_idletasks()
+
+        # Get parent window position and size
+        parent_x = self.root.winfo_rootx()  # Use rootx/rooty for absolute screen position
+        parent_y = self.root.winfo_rooty()
         parent_width = self.root.winfo_width()
         parent_height = self.root.winfo_height()
 
