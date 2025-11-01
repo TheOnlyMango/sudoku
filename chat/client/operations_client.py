@@ -611,14 +611,24 @@ class OperationsClient:
                                        state="readonly", font=("Courier", 9), width=15)
         priority_combo.pack(side=tk.LEFT, padx=5)
 
-        # DTG Info Date
+        # DATE OF INFO (with calendar widget)
         dtg_info_frame = tk.Frame(self.iir_form_frame, bg=self.PANEL_COLOR)
         dtg_info_frame.pack(pady=3, padx=10, fill=tk.X)
-        tk.Label(dtg_info_frame, text="DTG INFO DATE:", font=("Courier", 9), bg=self.PANEL_COLOR,
+        tk.Label(dtg_info_frame, text="DATE OF INFO:", font=("Courier", 9), bg=self.PANEL_COLOR,
                  fg=self.TEXT_COLOR, width=15, anchor=tk.W).pack(side=tk.LEFT)
+
+        # Entry field for DTG display (DDHHMM(Z)MONYY format)
         self.iir_dtg_info_entry = tk.Entry(dtg_info_frame, font=("Courier", 9), bg=self.INPUT_BG,
-                                             fg=self.TEXT_COLOR, insertbackground=self.TEXT_COLOR, relief=tk.FLAT)
-        self.iir_dtg_info_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
+                                             fg=self.TEXT_COLOR, insertbackground=self.TEXT_COLOR,
+                                             relief=tk.FLAT, width=20)
+        self.iir_dtg_info_entry.pack(side=tk.LEFT, padx=5)
+
+        # Calendar button
+        cal_btn = tk.Button(dtg_info_frame, text="📅", font=("Courier", 9),
+                           bg=self.BUTTON_COLOR, fg=self.TEXT_COLOR,
+                           command=lambda: self._show_dtg_calendar(self.iir_dtg_info_entry),
+                           width=3, cursor="hand2")
+        cal_btn.pack(side=tk.LEFT, padx=2)
 
         # DTG Cutoff
         dtg_cutoff_frame = tk.Frame(self.iir_form_frame, bg=self.PANEL_COLOR)
@@ -1418,6 +1428,173 @@ class OperationsClient:
             self._show_message("Server timeout downloading file", self.ERROR_COLOR)
         except Exception as e:
             self._show_message(f"✗ Error: {e}", self.ERROR_COLOR)
+
+    def _show_dtg_calendar(self, entry_widget):
+        """Show calendar widget to select date/time in DTG format."""
+        from datetime import datetime
+        import calendar
+
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Select Date/Time")
+        dialog.configure(bg=self.BG_COLOR)
+        dialog.geometry("350x400")
+        dialog.resizable(False, False)
+
+        # Center dialog
+        self.root.update_idletasks()
+        dialog.update_idletasks()
+        parent_x = self.root.winfo_rootx()
+        parent_y = self.root.winfo_rooty()
+        parent_width = self.root.winfo_width()
+        parent_height = self.root.winfo_height()
+
+        x = parent_x + (parent_width - 350) // 2
+        y = parent_y + (parent_height - 400) // 2
+        dialog.geometry(f"350x400+{x}+{y}")
+        dialog.grab_set()
+
+        # Current date/time
+        now = datetime.now()
+        selected_date = tk.StringVar(value=now.strftime("%Y-%m-%d"))
+        selected_hour = tk.StringVar(value=now.strftime("%H"))
+        selected_minute = tk.StringVar(value=now.strftime("%M"))
+
+        # Header
+        tk.Label(dialog, text="SELECT DATE & TIME", font=("Courier", 10, "bold"),
+                bg=self.BG_COLOR, fg=self.SYSTEM_COLOR).pack(pady=10)
+
+        # Calendar frame
+        cal_frame = tk.Frame(dialog, bg=self.PANEL_COLOR, relief=tk.RIDGE, bd=2)
+        cal_frame.pack(pady=10, padx=10, fill=tk.BOTH, expand=True)
+
+        # Month/Year selector
+        nav_frame = tk.Frame(cal_frame, bg=self.PANEL_COLOR)
+        nav_frame.pack(pady=5)
+
+        current_month = tk.IntVar(value=now.month)
+        current_year = tk.IntVar(value=now.year)
+
+        def update_calendar():
+            # Clear existing calendar
+            for widget in days_frame.winfo_children():
+                widget.destroy()
+
+            # Get calendar for selected month/year
+            month = current_month.get()
+            year = current_year.get()
+            cal = calendar.monthcalendar(year, month)
+
+            # Day headers
+            for i, day in enumerate(['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']):
+                tk.Label(days_frame, text=day, font=("Courier", 8, "bold"),
+                        bg=self.PANEL_COLOR, fg=self.SYSTEM_COLOR, width=4).grid(row=0, column=i)
+
+            # Days
+            for week_num, week in enumerate(cal, start=1):
+                for day_num, day in enumerate(week):
+                    if day == 0:
+                        tk.Label(days_frame, text="", bg=self.PANEL_COLOR, width=4).grid(row=week_num, column=day_num)
+                    else:
+                        day_str = f"{year}-{month:02d}-{day:02d}"
+                        btn = tk.Button(days_frame, text=str(day), font=("Courier", 8),
+                                       bg=self.INPUT_BG, fg=self.TEXT_COLOR,
+                                       command=lambda d=day_str: selected_date.set(d),
+                                       width=4, cursor="hand2")
+                        btn.grid(row=week_num, column=day_num, padx=1, pady=1)
+
+        def prev_month():
+            month = current_month.get()
+            year = current_year.get()
+            if month == 1:
+                current_month.set(12)
+                current_year.set(year - 1)
+            else:
+                current_month.set(month - 1)
+            month_label.config(text=f"{calendar.month_name[current_month.get()]} {current_year.get()}")
+            update_calendar()
+
+        def next_month():
+            month = current_month.get()
+            year = current_year.get()
+            if month == 12:
+                current_month.set(1)
+                current_year.set(year + 1)
+            else:
+                current_month.set(month + 1)
+            month_label.config(text=f"{calendar.month_name[current_month.get()]} {current_year.get()}")
+            update_calendar()
+
+        tk.Button(nav_frame, text="<", command=prev_month, font=("Courier", 9, "bold"),
+                 bg=self.BUTTON_COLOR, fg=self.TEXT_COLOR, width=3).pack(side=tk.LEFT, padx=5)
+
+        month_label = tk.Label(nav_frame, text=f"{calendar.month_name[now.month]} {now.year}",
+                              font=("Courier", 9, "bold"), bg=self.PANEL_COLOR, fg=self.ACCENT_COLOR, width=20)
+        month_label.pack(side=tk.LEFT, padx=5)
+
+        tk.Button(nav_frame, text=">", command=next_month, font=("Courier", 9, "bold"),
+                 bg=self.BUTTON_COLOR, fg=self.TEXT_COLOR, width=3).pack(side=tk.LEFT, padx=5)
+
+        # Days frame
+        days_frame = tk.Frame(cal_frame, bg=self.PANEL_COLOR)
+        days_frame.pack(pady=5)
+        update_calendar()
+
+        # Time selector
+        time_frame = tk.Frame(dialog, bg=self.PANEL_COLOR, relief=tk.RIDGE, bd=2)
+        time_frame.pack(pady=10, padx=10, fill=tk.X)
+
+        tk.Label(time_frame, text="TIME (UTC):", font=("Courier", 9, "bold"),
+                bg=self.PANEL_COLOR, fg=self.TEXT_COLOR).pack(pady=5)
+
+        time_input_frame = tk.Frame(time_frame, bg=self.PANEL_COLOR)
+        time_input_frame.pack(pady=5)
+
+        tk.Label(time_input_frame, text="Hour:", font=("Courier", 8),
+                bg=self.PANEL_COLOR, fg=self.TEXT_COLOR).pack(side=tk.LEFT, padx=5)
+
+        from tkinter import ttk
+        hour_combo = ttk.Combobox(time_input_frame, textvariable=selected_hour,
+                                   values=[f"{h:02d}" for h in range(24)],
+                                   state="readonly", font=("Courier", 9), width=4)
+        hour_combo.pack(side=tk.LEFT, padx=5)
+
+        tk.Label(time_input_frame, text="Min:", font=("Courier", 8),
+                bg=self.PANEL_COLOR, fg=self.TEXT_COLOR).pack(side=tk.LEFT, padx=5)
+
+        min_combo = ttk.Combobox(time_input_frame, textvariable=selected_minute,
+                                  values=[f"{m:02d}" for m in range(0, 60, 5)],
+                                  state="readonly", font=("Courier", 9), width=4)
+        min_combo.pack(side=tk.LEFT, padx=5)
+
+        # OK button
+        def on_ok():
+            # Format: DDHHMM(Z)MONYY
+            date = datetime.strptime(selected_date.get(), "%Y-%m-%d")
+            hour = selected_hour.get()
+            minute = selected_minute.get()
+
+            # DTG format: DDHHMM(Z)MONYY
+            month_abbr = date.strftime("%b").upper()
+            dtg = f"{date.day:02d}{hour}{minute}Z{month_abbr}{date.strftime('%y')}"
+
+            # Check if entry already has a DTG (for range)
+            current = entry_widget.get().strip()
+            if current and not current.endswith('[END]'):
+                # Add as second date
+                entry_widget.delete(0, tk.END)
+                entry_widget.insert(0, f"{current} - {dtg} [END]")
+            else:
+                # Set as first date
+                entry_widget.delete(0, tk.END)
+                entry_widget.insert(0, dtg)
+
+            dialog.destroy()
+
+        btn = tk.Button(dialog, text="[ OK ]", command=on_ok, font=("Courier", 10, "bold"),
+                       bg=self.BUTTON_COLOR, fg=self.ACCENT_COLOR, padx=20, pady=5)
+        btn.pack(pady=10)
+
+        self.root.wait_window(dialog)
 
     def _on_abort(self):
         """Handle abort button."""
