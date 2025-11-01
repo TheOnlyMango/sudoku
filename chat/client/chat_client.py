@@ -343,9 +343,9 @@ class ChatClient:
         chat_label.pack(pady=5)
 
         # Chat display - reduced height to make room for input
-        self.chat_display = scrolledtext.ScrolledText(
+        self.chat_display = tk.Text(
             chat_panel,
-            font=("Courier", 22),  # Doubled from 11 to 22
+            font=("Courier New", 14),  # Optimal size: readable but not overwhelming
             bg=self.PANEL_COLOR,
             fg=self.TEXT_COLOR,
             insertbackground=self.TEXT_COLOR,
@@ -353,9 +353,14 @@ class ChatClient:
             wrap=tk.WORD,
             relief=tk.FLAT,
             highlightthickness=0,
-            height=16  # Reduced to 16 to make room for input
+            height=16
         )
-        self.chat_display.pack(padx=5, pady=5, fill=tk.BOTH)
+        self.chat_display.pack(padx=5, pady=5, fill=tk.BOTH, expand=True)
+
+        # Enable mouse wheel scrolling (scrollbar hidden but functionality kept)
+        def _on_mousewheel(event):
+            self.chat_display.yview_scroll(int(-1*(event.delta/120)), "units")
+        self.chat_display.bind("<MouseWheel>", _on_mousewheel)
 
         # Configure text tags
         self.chat_display.tag_config("system", foreground=self.SYSTEM_COLOR)
@@ -381,7 +386,7 @@ class ChatClient:
         # Message input
         self.message_entry = tk.Entry(
             input_frame,
-            font=("Courier", 20),  # Doubled from 10 to 20
+            font=("Courier New", 14),
             bg=self.INPUT_BG,
             fg=self.TEXT_COLOR,
             insertbackground=self.TEXT_COLOR,
@@ -480,9 +485,9 @@ class ChatClient:
         msg_header.pack(pady=5)
 
         # Message display area - reduced expansion to show input
-        self.inbox_msg_display = scrolledtext.ScrolledText(
+        self.inbox_msg_display = tk.Text(
             right_frame,
-            font=("Courier", 20),  # Doubled from 10 to 20
+            font=("Courier New", 14),
             bg="#1a1f2e",
             fg=self.TEXT_COLOR,
             state=tk.DISABLED,
@@ -491,7 +496,12 @@ class ChatClient:
             highlightthickness=0,
             height=16  # Fixed height to ensure input shows
         )
-        self.inbox_msg_display.pack(padx=5, pady=5, fill=tk.BOTH)
+        self.inbox_msg_display.pack(padx=5, pady=5, fill=tk.BOTH, expand=True)
+
+        # Enable mouse wheel scrolling
+        def _on_inbox_mousewheel(event):
+            self.inbox_msg_display.yview_scroll(int(-1*(event.delta/120)), "units")
+        self.inbox_msg_display.bind("<MouseWheel>", _on_inbox_mousewheel)
 
         # Configure tags for inbox messages
         self.inbox_msg_display.tag_config("sent", foreground="#8be9fd", justify=tk.RIGHT)  # Cyan for sent, right-aligned
@@ -514,7 +524,7 @@ class ChatClient:
 
         self.inbox_input_entry = tk.Entry(
             input_frame,
-            font=("Courier", 20),  # Doubled from 10 to 20
+            font=("Courier New", 14),
             bg=self.INPUT_BG,
             fg=self.TEXT_COLOR,
             insertbackground=self.TEXT_COLOR,

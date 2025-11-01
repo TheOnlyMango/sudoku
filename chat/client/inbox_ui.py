@@ -149,9 +149,9 @@ class InboxUI:
         msg_header.pack(pady=5)
 
         # Message display area
-        self.message_display = scrolledtext.ScrolledText(
+        self.message_display = tk.Text(
             right_frame,
-            font=("Courier", 18),  # Doubled from 9 to 18
+            font=("Courier New", 14),
             bg="#1a1f2e",
             fg=self.TEXT_COLOR,
             insertbackground=self.TEXT_COLOR,
@@ -161,6 +161,11 @@ class InboxUI:
             state=tk.DISABLED
         )
         self.message_display.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+
+        # Enable mouse wheel scrolling
+        def _on_mousewheel(event):
+            self.message_display.yview_scroll(int(-1*(event.delta/120)), "units")
+        self.message_display.bind("<MouseWheel>", _on_mousewheel)
 
         # Configure tags for message display
         import tkinter as tk
@@ -185,7 +190,7 @@ class InboxUI:
 
         self.reply_entry = tk.Entry(
             reply_frame,
-            font=("Courier", 18),  # Doubled from 9 to 18
+            font=("Courier New", 14),
             bg=self.INPUT_BG,
             fg=self.TEXT_COLOR,
             insertbackground=self.TEXT_COLOR,
