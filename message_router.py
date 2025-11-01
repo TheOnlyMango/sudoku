@@ -26,7 +26,9 @@ class MessageRouter:
 
     # Message prefixes for routing
     OPERATION_PREFIXES = ['OP_', 'OPERATION_']
-    DM_PREFIXES = ['DM_', 'OFFLINE:']
+    # DM response messages (from server) - these go to chat queue for process_message()
+    DM_RESPONSE_PREFIXES = ['DM_INBOX:', 'DM_CONVERSATION:', 'DM_MARKED_READ:']
+    # OFFLINE goes to chat queue too (handled by process_message)
     SYSTEM_PREFIXES = ['WELCOME:', 'SERVER_SHUTDOWN:', 'ERROR:', 'SUCCESS:']
 
     def __init__(self, client_socket: socket.socket):
@@ -41,7 +43,7 @@ class MessageRouter:
         # Message queues for different subsystems
         self.chat_queue = queue.Queue()
         self.operations_queue = queue.Queue()
-        self.dm_queue = queue.Queue()
+        # Note: DM responses go to chat_queue (processed by chat_client.process_message)
 
         # Connection status
         self.connected = True
@@ -122,14 +124,15 @@ class MessageRouter:
                 logger.debug(f"Routed to operations: {message[:50]}")
                 return
 
-        # Check DM prefixes
-        for prefix in self.DM_PREFIXES:
+        # DM response messages from server go to chat queue
+        # (They're processed by chat_client.process_message() to populate pending_responses)
+        for prefix in self.DM_RESPONSE_PREFIXES:
             if message.startswith(prefix):
-                self.dm_queue.put(message)
-                logger.debug(f"Routed to DM: {message[:50]}")
+                self.chat_queue.put(message)
+                logger.debug(f"Routed DM response to chat: {message[:50]}")
                 return
 
-        # Everything else goes to chat (includes CHAT:, HISTORY:, JOIN:, LEAVE:, etc.)
+        # Everything else goes to chat (includes CHAT:, HISTORY:, JOIN:, LEAVE:, OFFLINE:, etc.)
         self.chat_queue.put(message)
         logger.debug(f"Routed to chat: {message[:50]}")
 
@@ -168,23 +171,6 @@ class MessageRouter:
         except queue.Empty:
             raise TimeoutError(f"Operation response not received within {timeout}s")
 
-    def get_dm_message(self, timeout: Optional[float] = None) -> Optional[str]:
-        """Get next DM message from queue.
-
-        Args:
-            timeout: How long to wait for message (None = wait forever, 0 = non-blocking)
-
-        Returns:
-            Message string or None if timeout/no message
-        """
-        try:
-            if timeout == 0:
-                # Non-blocking
-                return self.dm_queue.get_nowait()
-            else:
-                return self.dm_queue.get(timeout=timeout)
-        except queue.Empty:
-            return None
 
     def send(self, message: str):
         """Send message to server.
