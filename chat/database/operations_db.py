@@ -48,6 +48,26 @@ class OperationsDB:
                 )
             ''')
 
+            # Intelligence Information Reports (IIR) table
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS intelligence_reports (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    operation_id INTEGER NOT NULL,
+                    report_number TEXT UNIQUE NOT NULL,
+                    submitter TEXT NOT NULL,
+                    priority TEXT NOT NULL,
+                    dtg_submitted TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    dtg_info_date TEXT NOT NULL,
+                    dtg_cutoff TEXT NOT NULL,
+                    target TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    information TEXT NOT NULL,
+                    filename TEXT,
+                    file_path TEXT,
+                    FOREIGN KEY (operation_id) REFERENCES operations (id)
+                )
+            ''')
+
             conn.commit()
 
     def validate_password(self, password: str) -> Tuple[bool, str]:
@@ -256,4 +276,168 @@ class OperationsDB:
             except Exception as e:
                 from server_logging import ops_logger
                 ops_logger.error(f"Error reading file {file_path}: {e}")
+                return None
+
+    def generate_ir_number(self) -> str:
+        """Generate next IR number in format IR25-0001.
+
+        Returns:
+            Next available IR number for current year
+        """
+        with self.db_pool.get_connection() as conn:
+            cursor = conn.cursor()
+
+            # Get current year (last 2 digits)
+            current_year = datetime.now().strftime('%y')
+
+            # Find highest number for current year
+            cursor.execute('''
+                SELECT report_number FROM intelligence_reports
+                WHERE report_number LIKE ?
+                ORDER BY report_number DESC
+                LIMIT 1
+            ''', (f'IR{current_year}-%',))
+
+            result = cursor.fetchone()
+
+            if result:
+                # Extract number and increment
+                last_number = int(result[0].split('-')[1])
+                next_number = last_number + 1
+            else:
+                # First report of the year
+                next_number = 1
+
+            # Format as IR25-0001
+            return f'IR{current_year}-{next_number:04d}'
+
+    def submit_iir(self, operation_name: str, submitter: str, priority: str,
+                   dtg_info_date: str, dtg_cutoff: str, target: str, title: str,
+                   information: str, filename: str = None, file_data_b64: str = None) -> Tuple[bool, str]:
+        """Submit an Intelligence Information Report (IIR).
+
+        Args:
+            operation_name: Name of operation
+            submitter: Username submitting report
+            priority: Priority level (routine, urgent, priority, flash)
+            dtg_info_date: DTG of information date
+            dtg_cutoff: DTG of information cutoff
+            target: Target of intelligence
+            title: Report title
+            information: Information text block
+            filename: Optional filename for attachment
+            file_data_b64: Optional base64-encoded file data
+
+        Returns:
+            Tuple of (success, message/report_number)
+        """
+        try:
+            with self.db_pool.get_connection() as conn:
+                cursor = conn.cursor()
+
+                # Get operation ID
+                cursor.execute('SELECT id FROM operations WHERE name = ?', (operation_name,))
+                result = cursor.fetchone()
+
+                if not result:
+                    return False, "Operation not found"
+
+                operation_id = result[0]
+
+                # Generate IR number
+                report_number = self.generate_ir_number()
+
+                # Handle file if provided
+                file_path = None
+                if filename and file_data_b64:
+                    file_dir = os.path.join('operation_files', operation_name, 'iirs')
+                    os.makedirs(file_dir, exist_ok=True)
+                    file_path = os.path.join(file_dir, filename)
+
+                    import base64
+                    file_data = base64.b64decode(file_data_b64)
+                    with open(file_path, 'wb') as f:
+                        f.write(file_data)
+
+                # Insert IIR
+                cursor.execute('''
+                    INSERT INTO intelligence_reports
+                    (operation_id, report_number, submitter, priority, dtg_info_date,
+                     dtg_cutoff, target, title, information, filename, file_path)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (operation_id, report_number, submitter, priority, dtg_info_date,
+                      dtg_cutoff, target, title, information, filename, file_path))
+
+                conn.commit()
+                return True, report_number
+
+        except Exception as e:
+            from server_logging import ops_logger
+            ops_logger.error(f"Error submitting IIR: {e}")
+            return False, str(e)
+
+    def get_iirs(self, operation_name: str) -> List[Dict]:
+        """Get all IIRs for an operation.
+
+        Returns:
+            List of IIR dictionaries
+        """
+        with self.db_pool.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.row_factory = sqlite3.Row
+
+            cursor.execute('''
+                SELECT ir.* FROM intelligence_reports ir
+                JOIN operations op ON ir.operation_id = op.id
+                WHERE op.name = ?
+                ORDER BY ir.dtg_submitted DESC
+            ''', (operation_name,))
+
+            iirs = []
+            for row in cursor.fetchall():
+                iirs.append({
+                    'id': row['id'],
+                    'report_number': row['report_number'],
+                    'submitter': row['submitter'],
+                    'priority': row['priority'],
+                    'dtg_submitted': row['dtg_submitted'],
+                    'dtg_info_date': row['dtg_info_date'],
+                    'dtg_cutoff': row['dtg_cutoff'],
+                    'target': row['target'],
+                    'title': row['title'],
+                    'information': row['information'],
+                    'filename': row['filename']
+                })
+
+            return iirs
+
+    def get_iir_file_data(self, iir_id: int) -> Optional[str]:
+        """Get base64-encoded file data for an IIR.
+
+        Returns:
+            Base64-encoded file data or None
+        """
+        with self.db_pool.get_connection() as conn:
+            cursor = conn.cursor()
+
+            cursor.execute('SELECT file_path FROM intelligence_reports WHERE id = ?', (iir_id,))
+            result = cursor.fetchone()
+
+            if not result or not result[0]:
+                return None
+
+            file_path = result[0]
+
+            try:
+                if not os.path.exists(file_path):
+                    return None
+
+                with open(file_path, 'rb') as f:
+                    file_data = f.read()
+
+                import base64
+                return base64.b64encode(file_data).decode('utf-8')
+            except Exception as e:
+                from server_logging import ops_logger
+                ops_logger.error(f"Error reading IIR file {file_path}: {e}")
                 return None
