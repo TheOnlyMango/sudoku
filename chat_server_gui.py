@@ -255,26 +255,35 @@ class ServerGUI:
         self.log_message("Archiving chat session...", '#8be9fd')
         self.log_message("Closing client connections...", '#8be9fd')
 
+        # Disable stop button to prevent multiple clicks
+        self.stop_btn.config(state=tk.DISABLED)
+
+        # Run shutdown in background thread to avoid blocking GUI
+        shutdown_thread = threading.Thread(target=self._shutdown_server_thread, daemon=True)
+        shutdown_thread.start()
+
+    def _shutdown_server_thread(self):
+        """Background thread to handle server shutdown."""
         try:
             self.running = False
             self.server.stop()
 
             # Wait for server thread to finish (with timeout)
             if self.server_thread and self.server_thread.is_alive():
-                self.log_message("Waiting for server thread to stop...", '#8be9fd')
+                self.root.after(0, lambda: self.log_message("Waiting for server thread to stop...", '#8be9fd'))
                 self.server_thread.join(timeout=3.0)
                 if self.server_thread.is_alive():
-                    self.log_message("WARNING: Server thread did not stop cleanly", '#ffb86c')
+                    self.root.after(0, lambda: self.log_message("WARNING: Server thread did not stop cleanly", '#ffb86c'))
                 else:
-                    self.log_message("Server thread stopped", '#50fa7b')
+                    self.root.after(0, lambda: self.log_message("Server thread stopped", '#50fa7b'))
 
-            self.log_message("Server shutdown complete", '#50fa7b')
+            self.root.after(0, lambda: self.log_message("Server shutdown complete", '#50fa7b'))
 
         except Exception as e:
-            self.log_message(f"ERROR during shutdown: {e}", '#ff5555')
+            self.root.after(0, lambda: self.log_message(f"ERROR during shutdown: {e}", '#ff5555'))
 
         finally:
-            self._on_server_stopped()
+            self.root.after(0, self._on_server_stopped)
 
     def _on_server_stopped(self):
         """Update UI when server stops."""
