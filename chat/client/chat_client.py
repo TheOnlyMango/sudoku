@@ -345,7 +345,7 @@ class ChatClient:
         # Chat display - reduced height to make room for input
         self.chat_display = scrolledtext.ScrolledText(
             chat_panel,
-            font=("Courier", 11),
+            font=("Courier", 22),  # Doubled from 11 to 22
             bg=self.PANEL_COLOR,
             fg=self.TEXT_COLOR,
             insertbackground=self.TEXT_COLOR,
@@ -381,7 +381,7 @@ class ChatClient:
         # Message input
         self.message_entry = tk.Entry(
             input_frame,
-            font=("Courier", 10),
+            font=("Courier", 20),  # Doubled from 10 to 20
             bg=self.INPUT_BG,
             fg=self.TEXT_COLOR,
             insertbackground=self.TEXT_COLOR,
@@ -482,7 +482,7 @@ class ChatClient:
         # Message display area - reduced expansion to show input
         self.inbox_msg_display = scrolledtext.ScrolledText(
             right_frame,
-            font=("Courier", 10),
+            font=("Courier", 20),  # Doubled from 10 to 20
             bg="#1a1f2e",
             fg=self.TEXT_COLOR,
             state=tk.DISABLED,
@@ -514,7 +514,7 @@ class ChatClient:
 
         self.inbox_input_entry = tk.Entry(
             input_frame,
-            font=("Courier", 10),
+            font=("Courier", 20),  # Doubled from 10 to 20
             bg=self.INPUT_BG,
             fg=self.TEXT_COLOR,
             insertbackground=self.TEXT_COLOR,

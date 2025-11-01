@@ -151,7 +151,7 @@ class InboxUI:
         # Message display area
         self.message_display = scrolledtext.ScrolledText(
             right_frame,
-            font=("Courier", 9),
+            font=("Courier", 18),  # Doubled from 9 to 18
             bg="#1a1f2e",
             fg=self.TEXT_COLOR,
             insertbackground=self.TEXT_COLOR,
@@ -185,7 +185,7 @@ class InboxUI:
 
         self.reply_entry = tk.Entry(
             reply_frame,
-            font=("Courier", 9),
+            font=("Courier", 18),  # Doubled from 9 to 18
             bg=self.INPUT_BG,
             fg=self.TEXT_COLOR,
             insertbackground=self.TEXT_COLOR,
