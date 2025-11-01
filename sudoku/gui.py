@@ -7,13 +7,13 @@ from PIL import Image, ImageDraw, ImageFont, ImageTk
 from sudoku.board import SudokuBoard
 from sudoku.solver import SudokuSolver
 from sudoku.generator import SudokuGenerator, Difficulty
-from sudoku.chat_client import ChatClient
-from sudoku.operations_client import OperationsClient
+from chat.client.chat_client import ChatClient
+from chat.client.operations_client import OperationsClient
 import sys
 import os
 # Add parent directory to path for auth_ui import
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from auth_ui import AuthUI
+from chat.client.auth_ui import AuthUI
 
 
 class DraculaDialog:
