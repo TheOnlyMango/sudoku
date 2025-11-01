@@ -753,15 +753,22 @@ class ChatClient:
 
                 if success:
                     self.display_message(f">> Conversation with {self.current_conversation} archived", "system")
+                    archived_user = self.current_conversation
                     # Clear current conversation
                     self.current_conversation = None
-                    # Refresh inbox to update list
-                    self.load_inbox()
-                    # Clear message display
+                    # Clear message display immediately
                     if self.inbox_msg_display:
                         self.inbox_msg_display.config(state=tk.NORMAL)
                         self.inbox_msg_display.delete('1.0', tk.END)
                         self.inbox_msg_display.config(state=tk.DISABLED)
+                    # Refresh inbox asynchronously to update list
+                    import threading
+                    def refresh_after_archive():
+                        conversations = self.request_inbox()
+                        if conversations is not None:
+                            self.root.after(0, lambda: self._update_after_archive(conversations))
+                    thread = threading.Thread(target=refresh_after_archive, daemon=True)
+                    thread.start()
                 else:
                     error_msg = parts[1] if len(parts) > 1 else "Unknown error"
                     self.display_message(f">> Failed to archive: {error_msg}", "system")
@@ -770,6 +777,11 @@ class ChatClient:
             self.display_message(">> Server timeout - archive failed", "system")
         except Exception as e:
             self.display_message(f">> Archive error: {e}", "system")
+
+    def _update_after_archive(self, conversations):
+        """Update inbox GUI after archiving a conversation (called in GUI thread)."""
+        self.conversations = conversations
+        self.update_conversation_list()
 
     def _on_inbox_dm_received(self, sender, message):
         """Callback when DM arrives while inbox view is active.
