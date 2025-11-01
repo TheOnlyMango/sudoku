@@ -41,9 +41,10 @@ class ChatApplication:
         for widget in self.main_container.winfo_children():
             widget.destroy()
 
-        # Create auth UI
+        # Create auth UI - pass root window, not container
+        # AuthUI creates its own Toplevel window
         self.auth_ui = AuthUI(
-            self.main_container,
+            self.root,
             on_auth_success=self.on_auth_success
         )
         self.auth_ui.show_auth_screen()
