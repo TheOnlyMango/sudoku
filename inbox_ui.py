@@ -516,14 +516,14 @@ class InboxUI:
         # Count current messages before refresh
         current_content = None
         try:
-            current_content = self.msg_display.get('1.0', tk.END)
+            current_content = self.message_display.get('1.0', tk.END)
             current_lines = len(current_content.strip().split('\n'))
         except:
             current_lines = 0
 
         # Save scroll position
         try:
-            scroll_pos = self.msg_display.yview()
+            scroll_pos = self.message_display.yview()
             at_bottom = scroll_pos[1] >= 0.99  # Check if already at bottom
         except:
             scroll_pos = None
@@ -534,8 +534,13 @@ class InboxUI:
 
         if messages is not None:
             # Update display
-            self.msg_display.config(state=tk.NORMAL)
-            self.msg_display.delete('1.0', tk.END)
+            self.message_display.config(state=tk.NORMAL)
+            self.message_display.delete('1.0', tk.END)
+
+            # Add header
+            self.message_display.insert(tk.END, "═" * 80 + "\n", "prompt")
+            self.message_display.insert(tk.END, f"  CONVERSATION WITH: {self.current_conversation.upper()}\n", "received")
+            self.message_display.insert(tk.END, "═" * 80 + "\n\n", "prompt")
 
             for msg in messages:
                 sender = msg['sender']
@@ -549,19 +554,19 @@ class InboxUI:
                 except:
                     time_str = timestamp
 
-                # Display message
+                # Display message using same format as display_conversation
                 if sender == self.chat_client.username:
-                    # Our message (right-aligned)
-                    self.msg_display.insert(tk.END, f"[{time_str}] ", "time")
-                    self.msg_display.insert(tk.END, "YOU: ", "you")
-                    self.msg_display.insert(tk.END, f"{message}\n", "text")
+                    # Our message
+                    self.message_display.insert(tk.END, f"[{time_str}] ", "time")
+                    self.message_display.insert(tk.END, ">>> ", "prompt")
+                    self.message_display.insert(tk.END, f"{message}\n\n", "sent")
                 else:
-                    # Their message (left-aligned)
-                    self.msg_display.insert(tk.END, f"[{time_str}] ", "time")
-                    self.msg_display.insert(tk.END, f"{sender}: ", "them")
-                    self.msg_display.insert(tk.END, f"{message}\n", "text")
+                    # Their message
+                    self.message_display.insert(tk.END, f"[{time_str}] ", "time")
+                    self.message_display.insert(tk.END, f"[{sender}] ", "received")
+                    self.message_display.insert(tk.END, f"{message}\n\n", "text")
 
-            self.msg_display.config(state=tk.DISABLED)
+            self.message_display.config(state=tk.DISABLED)
 
             # Check if new messages arrived
             new_lines = len(messages)
@@ -569,10 +574,10 @@ class InboxUI:
 
             # Scroll to bottom if: was already at bottom OR got new messages
             if at_bottom or got_new_messages:
-                self.msg_display.see(tk.END)
+                self.message_display.see(tk.END)
             elif scroll_pos:
                 # Restore scroll position if not at bottom and no new messages
-                self.msg_display.yview_moveto(scroll_pos[0])
+                self.message_display.yview_moveto(scroll_pos[0])
 
     def close_inbox(self):
         """Close inbox and cancel auto-refresh."""
