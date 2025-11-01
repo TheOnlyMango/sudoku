@@ -611,33 +611,58 @@ class OperationsClient:
                                        state="readonly", font=("Courier", 9), width=15)
         priority_combo.pack(side=tk.LEFT, padx=5)
 
-        # DATE OF INFO (with calendar widget)
+        # DATE OF INFO (LCD ticker tape style)
         dtg_info_frame = tk.Frame(self.iir_form_frame, bg=self.PANEL_COLOR)
         dtg_info_frame.pack(pady=3, padx=10, fill=tk.X)
         tk.Label(dtg_info_frame, text="DATE OF INFO:", font=("Courier", 9), bg=self.PANEL_COLOR,
                  fg=self.TEXT_COLOR, width=15, anchor=tk.W).pack(side=tk.LEFT)
 
-        # Entry field for DTG display (DDHHMM(Z)MONYY format)
-        self.iir_dtg_info_entry = tk.Entry(dtg_info_frame, font=("Courier", 9), bg=self.INPUT_BG,
-                                             fg=self.TEXT_COLOR, insertbackground=self.TEXT_COLOR,
-                                             relief=tk.FLAT, width=20)
-        self.iir_dtg_info_entry.pack(side=tk.LEFT, padx=5)
+        # Container for ticker(s) and [END] button
+        self.dtg_info_container = tk.Frame(dtg_info_frame, bg=self.PANEL_COLOR)
+        self.dtg_info_container.pack(side=tk.LEFT, padx=5)
 
-        # Calendar button
-        cal_btn = tk.Button(dtg_info_frame, text="📅", font=("Courier", 9),
-                           bg=self.BUTTON_COLOR, fg=self.TEXT_COLOR,
-                           command=lambda: self._show_dtg_calendar(self.iir_dtg_info_entry),
-                           width=3, cursor="hand2")
-        cal_btn.pack(side=tk.LEFT, padx=2)
+        # First ticker (always visible)
+        ticker1_container, self.dtg_info_ticker1_labels, dtg1_btn = self._create_dtg_ticker(
+            self.dtg_info_container,
+            on_dtg_click=lambda: self._show_dtg_calendar_for_ticker(self.dtg_info_ticker1_labels, 1)
+        )
+        ticker1_container.pack(side=tk.LEFT)
 
-        # DTG Cutoff
+        # Store DTG values
+        self.dtg_info_value1 = ""
+        self.dtg_info_value2 = ""
+
+        # [END] button (initially hidden) - appears after first date is set
+        self.dtg_info_end_btn = tk.Button(
+            self.dtg_info_container,
+            text="[END]",
+            font=("Courier", 8, "bold"),
+            bg=self.SYSTEM_COLOR,
+            fg=self.PANEL_COLOR,
+            command=self._add_second_dtg_info,
+            relief=tk.RAISED,
+            bd=2,
+            cursor="hand2"
+        )
+        # Don't pack yet - will show after first date is set
+
+        # Second ticker (initially hidden)
+        self.dtg_info_ticker2_container = None
+        self.dtg_info_ticker2_labels = None
+
+        # CUTOFF (LCD ticker tape style - single date only)
         dtg_cutoff_frame = tk.Frame(self.iir_form_frame, bg=self.PANEL_COLOR)
         dtg_cutoff_frame.pack(pady=3, padx=10, fill=tk.X)
-        tk.Label(dtg_cutoff_frame, text="DTG CUTOFF:", font=("Courier", 9), bg=self.PANEL_COLOR,
+        tk.Label(dtg_cutoff_frame, text="CUTOFF:", font=("Courier", 9), bg=self.PANEL_COLOR,
                  fg=self.TEXT_COLOR, width=15, anchor=tk.W).pack(side=tk.LEFT)
-        self.iir_dtg_cutoff_entry = tk.Entry(dtg_cutoff_frame, font=("Courier", 9), bg=self.INPUT_BG,
-                                               fg=self.TEXT_COLOR, insertbackground=self.TEXT_COLOR, relief=tk.FLAT)
-        self.iir_dtg_cutoff_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
+
+        cutoff_ticker_container, self.dtg_cutoff_ticker_labels, cutoff_dtg_btn = self._create_dtg_ticker(
+            dtg_cutoff_frame,
+            on_dtg_click=lambda: self._show_dtg_calendar_for_ticker(self.dtg_cutoff_ticker_labels, 'cutoff')
+        )
+        cutoff_ticker_container.pack(side=tk.LEFT, padx=5)
+
+        self.dtg_cutoff_value = ""
 
         # Target
         target_frame = tk.Frame(self.iir_form_frame, bg=self.PANEL_COLOR)
@@ -759,6 +784,111 @@ class OperationsClient:
         btn.bind("<Leave>", on_leave)
 
         return btn
+
+    def _create_dtg_ticker(self, parent, on_dtg_click=None):
+        """Create LCD-style DTG ticker tape display.
+
+        Returns: (ticker_frame, ticker_labels, dtg_button)
+        """
+        # Main ticker container
+        ticker_container = tk.Frame(parent, bg=self.PANEL_COLOR)
+
+        # Ticker display frame (holds all character labels)
+        ticker_frame = tk.Frame(ticker_container, bg=self.PANEL_COLOR, relief=tk.SUNKEN, bd=2,
+                                highlightbackground=self.ACCENT_COLOR, highlightthickness=1)
+        ticker_frame.pack(side=tk.LEFT, padx=(0, 2))
+
+        # Create 14 character labels for DTG format: DD HH MM Z MON YY
+        ticker_labels = []
+        char_groups = [2, 2, 2, 1, 3, 2]  # Character counts for each group
+        group_names = ['DD', 'HH', 'MM', 'Z', 'MON', 'YY']
+
+        char_index = 0
+        for group_idx, char_count in enumerate(char_groups):
+            # Add spacing between groups
+            if group_idx > 0:
+                tk.Frame(ticker_frame, width=3, bg=self.PANEL_COLOR).pack(side=tk.LEFT)
+
+            # Group frame for this DTG component
+            group_frame = tk.Frame(ticker_frame, bg=self.PANEL_COLOR)
+            group_frame.pack(side=tk.LEFT)
+
+            # Create character labels for this group
+            for i in range(char_count):
+                char_label = tk.Label(
+                    group_frame,
+                    text='─',  # Placeholder character
+                    font=("Courier", 10, "bold"),
+                    bg="#0a0e14",  # Dark LCD background
+                    fg=self.ACCENT_COLOR,  # Green glow
+                    width=2,
+                    height=1,
+                    relief=tk.FLAT,
+                    bd=1,
+                    highlightbackground=self.ACCENT_COLOR,  # Glow effect
+                    highlightthickness=1
+                )
+                char_label.pack(side=tk.LEFT, padx=1, pady=2)
+                ticker_labels.append(char_label)
+                char_index += 1
+
+        # DTG button - seamless integration with ticker
+        dtg_button = tk.Button(
+            ticker_container,
+            text="DTG",
+            font=("Courier", 9, "bold"),
+            bg=self.PANEL_COLOR,
+            fg=self.ACCENT_COLOR,
+            activebackground=self.ACCENT_COLOR,
+            activeforeground=self.PANEL_COLOR,
+            command=on_dtg_click,
+            relief=tk.RAISED,
+            bd=2,
+            cursor="hand2",
+            highlightbackground=self.ACCENT_COLOR,
+            highlightthickness=1
+        )
+        dtg_button.pack(side=tk.LEFT)
+
+        # Hover effect for button
+        def on_enter(e):
+            dtg_button.config(bg=self.ACCENT_COLOR, fg=self.PANEL_COLOR)
+        def on_leave(e):
+            dtg_button.config(bg=self.PANEL_COLOR, fg=self.ACCENT_COLOR)
+        dtg_button.bind("<Enter>", on_enter)
+        dtg_button.bind("<Leave>", on_leave)
+
+        return ticker_container, ticker_labels, dtg_button
+
+    def _update_dtg_ticker(self, ticker_labels, dtg_string):
+        """Update ticker tape display with DTG string.
+
+        Args:
+            ticker_labels: List of 14 character labels
+            dtg_string: DTG in format DDHHMM(Z)MONYY or empty
+        """
+        if not dtg_string or dtg_string == '':
+            # Clear display
+            for label in ticker_labels:
+                label.config(text='─')
+        else:
+            # Remove Z and parentheses, parse DTG
+            dtg_clean = dtg_string.replace('(', '').replace(')', '')
+            # Format: DDHHMMZMONYY (13 chars) but we display with Z separate
+            # Parse: DD HH MM Z MON YY
+            try:
+                if len(dtg_clean) >= 12:
+                    chars = list(dtg_clean)
+                    # Update each label
+                    for i, label in enumerate(ticker_labels):
+                        if i < len(chars):
+                            label.config(text=chars[i])
+                        else:
+                            label.config(text='─')
+            except:
+                # If parsing fails, show dashes
+                for label in ticker_labels:
+                    label.config(text='─')
 
     def _load_operations(self):
         """Load operations list from server (runs in background thread)."""
@@ -1299,8 +1429,14 @@ class OperationsClient:
         """Submit an Intelligence Information Report."""
         # Get all field values
         priority = self.iir_priority_var.get()
-        dtg_info_date = self.iir_dtg_info_entry.get().strip()
-        dtg_cutoff = self.iir_dtg_cutoff_entry.get().strip()
+
+        # Build DTG info date (single or range)
+        if self.dtg_info_value2:
+            dtg_info_date = f"{self.dtg_info_value1} - {self.dtg_info_value2}"
+        else:
+            dtg_info_date = self.dtg_info_value1
+
+        dtg_cutoff = self.dtg_cutoff_value
         target = self.iir_target_entry.get().strip()
         title = self.iir_title_entry.get().strip()
         information = self.iir_information_text.get('1.0', tk.END).strip()
@@ -1354,8 +1490,23 @@ class OperationsClient:
                     self._show_message(f"✓ IIR submitted: {result}", self.SUCCESS_COLOR)
                     # Clear form
                     self.iir_priority_var.set("routine")
-                    self.iir_dtg_info_entry.delete(0, tk.END)
-                    self.iir_dtg_cutoff_entry.delete(0, tk.END)
+
+                    # Clear DTG tickers
+                    self.dtg_info_value1 = ""
+                    self.dtg_info_value2 = ""
+                    self.dtg_cutoff_value = ""
+                    self._update_dtg_ticker(self.dtg_info_ticker1_labels, "")
+                    self._update_dtg_ticker(self.dtg_cutoff_ticker_labels, "")
+
+                    # Remove second ticker if it exists
+                    if self.dtg_info_ticker2_container is not None:
+                        self.dtg_info_ticker2_container.destroy()
+                        self.dtg_info_ticker2_container = None
+                        self.dtg_info_ticker2_labels = None
+
+                    # Hide [END] button
+                    self.dtg_info_end_btn.pack_forget()
+
                     self.iir_target_entry.delete(0, tk.END)
                     self.iir_title_entry.delete(0, tk.END)
                     self.iir_information_text.delete('1.0', tk.END)
@@ -1428,6 +1579,197 @@ class OperationsClient:
             self._show_message("Server timeout downloading file", self.ERROR_COLOR)
         except Exception as e:
             self._show_message(f"✗ Error: {e}", self.ERROR_COLOR)
+
+    def _show_dtg_calendar_for_ticker(self, ticker_labels, ticker_id):
+        """Show calendar and update ticker display.
+
+        Args:
+            ticker_labels: List of character labels for the ticker
+            ticker_id: 1, 2, or 'cutoff' to identify which ticker
+        """
+        from datetime import datetime
+        import calendar
+
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Select Date/Time")
+        dialog.configure(bg=self.BG_COLOR)
+        dialog.geometry("350x400")
+        dialog.resizable(False, False)
+
+        # Center dialog
+        self.root.update_idletasks()
+        dialog.update_idletasks()
+        parent_x = self.root.winfo_rootx()
+        parent_y = self.root.winfo_rooty()
+        parent_width = self.root.winfo_width()
+        parent_height = self.root.winfo_height()
+
+        x = parent_x + (parent_width - 350) // 2
+        y = parent_y + (parent_height - 400) // 2
+        dialog.geometry(f"350x400+{x}+{y}")
+        dialog.grab_set()
+
+        # Current date/time
+        now = datetime.now()
+        selected_date = tk.StringVar(value=now.strftime("%Y-%m-%d"))
+        selected_hour = tk.StringVar(value=now.strftime("%H"))
+        selected_minute = tk.StringVar(value=now.strftime("%M"))
+
+        # Header
+        tk.Label(dialog, text="SELECT DATE & TIME", font=("Courier", 10, "bold"),
+                bg=self.BG_COLOR, fg=self.SYSTEM_COLOR).pack(pady=10)
+
+        # Calendar frame
+        cal_frame = tk.Frame(dialog, bg=self.PANEL_COLOR, relief=tk.RIDGE, bd=2)
+        cal_frame.pack(pady=10, padx=10, fill=tk.BOTH, expand=True)
+
+        # Month/Year selector
+        nav_frame = tk.Frame(cal_frame, bg=self.PANEL_COLOR)
+        nav_frame.pack(pady=5)
+
+        current_month = tk.IntVar(value=now.month)
+        current_year = tk.IntVar(value=now.year)
+
+        def update_calendar():
+            # Clear existing calendar
+            for widget in days_frame.winfo_children():
+                widget.destroy()
+
+            # Get calendar for selected month/year
+            month = current_month.get()
+            year = current_year.get()
+            cal = calendar.monthcalendar(year, month)
+
+            # Day headers
+            for i, day in enumerate(['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']):
+                tk.Label(days_frame, text=day, font=("Courier", 8, "bold"),
+                        bg=self.PANEL_COLOR, fg=self.SYSTEM_COLOR, width=4).grid(row=0, column=i)
+
+            # Days
+            for week_num, week in enumerate(cal, start=1):
+                for day_num, day in enumerate(week):
+                    if day == 0:
+                        tk.Label(days_frame, text="", bg=self.PANEL_COLOR, width=4).grid(row=week_num, column=day_num)
+                    else:
+                        day_str = f"{year}-{month:02d}-{day:02d}"
+                        btn = tk.Button(days_frame, text=str(day), font=("Courier", 8),
+                                       bg=self.INPUT_BG, fg=self.TEXT_COLOR,
+                                       command=lambda d=day_str: selected_date.set(d),
+                                       width=4, cursor="hand2")
+                        btn.grid(row=week_num, column=day_num, padx=1, pady=1)
+
+        def prev_month():
+            month = current_month.get()
+            year = current_year.get()
+            if month == 1:
+                current_month.set(12)
+                current_year.set(year - 1)
+            else:
+                current_month.set(month - 1)
+            month_label.config(text=f"{calendar.month_name[current_month.get()]} {current_year.get()}")
+            update_calendar()
+
+        def next_month():
+            month = current_month.get()
+            year = current_year.get()
+            if month == 12:
+                current_month.set(1)
+                current_year.set(year + 1)
+            else:
+                current_month.set(month + 1)
+            month_label.config(text=f"{calendar.month_name[current_month.get()]} {current_year.get()}")
+            update_calendar()
+
+        tk.Button(nav_frame, text="<", command=prev_month, font=("Courier", 9, "bold"),
+                 bg=self.BUTTON_COLOR, fg=self.TEXT_COLOR, width=3).pack(side=tk.LEFT, padx=5)
+
+        month_label = tk.Label(nav_frame, text=f"{calendar.month_name[now.month]} {now.year}",
+                              font=("Courier", 9, "bold"), bg=self.PANEL_COLOR, fg=self.ACCENT_COLOR, width=20)
+        month_label.pack(side=tk.LEFT, padx=5)
+
+        tk.Button(nav_frame, text=">", command=next_month, font=("Courier", 9, "bold"),
+                 bg=self.BUTTON_COLOR, fg=self.TEXT_COLOR, width=3).pack(side=tk.LEFT, padx=5)
+
+        # Days frame
+        days_frame = tk.Frame(cal_frame, bg=self.PANEL_COLOR)
+        days_frame.pack(pady=5)
+        update_calendar()
+
+        # Time selector
+        time_frame = tk.Frame(dialog, bg=self.PANEL_COLOR, relief=tk.RIDGE, bd=2)
+        time_frame.pack(pady=10, padx=10, fill=tk.X)
+
+        tk.Label(time_frame, text="TIME (UTC):", font=("Courier", 9, "bold"),
+                bg=self.PANEL_COLOR, fg=self.TEXT_COLOR).pack(pady=5)
+
+        time_input_frame = tk.Frame(time_frame, bg=self.PANEL_COLOR)
+        time_input_frame.pack(pady=5)
+
+        tk.Label(time_input_frame, text="Hour:", font=("Courier", 8),
+                bg=self.PANEL_COLOR, fg=self.TEXT_COLOR).pack(side=tk.LEFT, padx=5)
+
+        from tkinter import ttk
+        hour_combo = ttk.Combobox(time_input_frame, textvariable=selected_hour,
+                                   values=[f"{h:02d}" for h in range(24)],
+                                   state="readonly", font=("Courier", 9), width=4)
+        hour_combo.pack(side=tk.LEFT, padx=5)
+
+        tk.Label(time_input_frame, text="Min:", font=("Courier", 8),
+                bg=self.PANEL_COLOR, fg=self.TEXT_COLOR).pack(side=tk.LEFT, padx=5)
+
+        min_combo = ttk.Combobox(time_input_frame, textvariable=selected_minute,
+                                  values=[f"{m:02d}" for m in range(0, 60, 5)],
+                                  state="readonly", font=("Courier", 9), width=4)
+        min_combo.pack(side=tk.LEFT, padx=5)
+
+        # OK button
+        def on_ok():
+            # Format: DDHHMM(Z)MONYY
+            date = datetime.strptime(selected_date.get(), "%Y-%m-%d")
+            hour = selected_hour.get()
+            minute = selected_minute.get()
+
+            # DTG format: DDHHMMZMONYY
+            month_abbr = date.strftime("%b").upper()
+            dtg = f"{date.day:02d}{hour}{minute}Z{month_abbr}{date.strftime('%y')}"
+
+            # Update the appropriate ticker
+            if ticker_id == 1:
+                self.dtg_info_value1 = dtg
+                self._update_dtg_ticker(ticker_labels, dtg)
+                # Show [END] button after first date is set
+                if not self.dtg_info_end_btn.winfo_ismapped():
+                    self.dtg_info_end_btn.pack(side=tk.LEFT, padx=5)
+            elif ticker_id == 2:
+                self.dtg_info_value2 = dtg
+                self._update_dtg_ticker(ticker_labels, dtg)
+            elif ticker_id == 'cutoff':
+                self.dtg_cutoff_value = dtg
+                self._update_dtg_ticker(ticker_labels, dtg)
+
+            dialog.destroy()
+
+        btn = tk.Button(dialog, text="[ OK ]", command=on_ok, font=("Courier", 10, "bold"),
+                       bg=self.BUTTON_COLOR, fg=self.ACCENT_COLOR, padx=20, pady=5)
+        btn.pack(pady=10)
+
+        self.root.wait_window(dialog)
+
+    def _add_second_dtg_info(self):
+        """Add second ticker for date range."""
+        if self.dtg_info_ticker2_container is not None:
+            return  # Already added
+
+        # Create second ticker
+        ticker2_container, self.dtg_info_ticker2_labels, dtg2_btn = self._create_dtg_ticker(
+            self.dtg_info_container,
+            on_dtg_click=lambda: self._show_dtg_calendar_for_ticker(self.dtg_info_ticker2_labels, 2)
+        )
+        ticker2_container.pack(side=tk.LEFT, padx=(10, 0))
+        self.dtg_info_ticker2_container = ticker2_container
+
+        # Hide [END] button after second ticker is added
+        self.dtg_info_end_btn.pack_forget()
 
     def _show_dtg_calendar(self, entry_widget):
         """Show calendar widget to select date/time in DTG format."""
