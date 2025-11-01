@@ -15,7 +15,7 @@ import socket
 # Add parent directory to path for auth_ui import
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from chat.client.auth_ui import AuthUI
-from chat.config.reader import ConfigReader
+from chat.config.reader import ChatConfig
 
 
 class DraculaDialog:
@@ -865,7 +865,7 @@ class SudokuGUI:
         """
         try:
             # Load server config
-            config = ConfigReader()
+            config = ChatConfig()
             host, port = config.get_server_address()
 
             # Attempt to connect with short timeout
