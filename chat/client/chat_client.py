@@ -126,7 +126,7 @@ class ChatClient:
             text="╔═══════════════════════════════════════════════════════════╗\n"
                  "║  ░▒▓█ S H N E T  S E C U R E  T E R M I N A L █▓▒░  ║\n"
                  "╚═══════════════════════════════════════════════════════════╝",
-            font=("Courier", 8, "bold"),
+            font=("Courier New", 8, "bold"),
             bg=self.BG_COLOR,
             fg=self.BUTTON_COLOR,
             justify=tk.CENTER
@@ -137,7 +137,7 @@ class ChatClient:
         self.tunnel_label = tk.Label(
             main_frame,
             text=">> ENCRYPTED TUNNEL ESTABLISHED <<",
-            font=("Courier", 8, "bold"),
+            font=("Courier New", 8, "bold"),
             bg=self.BG_COLOR,
             fg=self.SYSTEM_COLOR
         )
@@ -153,7 +153,7 @@ class ChatClient:
             header_frame,
             text="ABORT",
             command=self._on_abort,
-            font=("Courier", 8, "bold"),
+            font=("Courier New", 8, "bold"),
             bg="#8b0000",  # Dark red
             fg="#ffffff",
             activebackground="#ff0000",
@@ -179,7 +179,7 @@ class ChatClient:
             header_frame,
             text="CHAT",
             command=lambda: self.switch_view('chat'),
-            font=("Courier", 8, "bold"),
+            font=("Courier New", 8, "bold"),
             bg="#00b4d8",  # Cyan blue
             fg="#00ff41",  # Matrix green
             activebackground="#00ff41",
@@ -208,7 +208,7 @@ class ChatClient:
             header_frame,
             text="INBOX",
             command=lambda: self.switch_view('inbox'),
-            font=("Courier", 8, "bold"),
+            font=("Courier New", 8, "bold"),
             bg="#ff006e",  # Hot pink
             fg="#00ff41",  # Matrix green
             activebackground="#00ff41",
@@ -237,7 +237,7 @@ class ChatClient:
                 header_frame,
                 text="OPERATIONS",
                 command=self.operations_callback,
-                font=("Courier", 8, "bold"),
+                font=("Courier New", 8, "bold"),
                 bg="#7b2cbf",  # Purple
                 fg="#00ff41",  # Matrix green
                 activebackground="#00ff41",
@@ -274,7 +274,7 @@ class ChatClient:
         self.led_indicator = tk.Label(
             status_frame,
             text="●",
-            font=("Courier", 16, "bold"),
+            font=("Courier New", 16, "bold"),
             bg=self.BG_COLOR,
             fg="#ffb86c"  # Yellow for connecting
         )
@@ -284,7 +284,7 @@ class ChatClient:
         self.status_label = tk.Label(
             status_frame,
             text="CONNECTING...",
-            font=("Courier", 9, "bold"),
+            font=("Courier New", 9, "bold"),
             bg=self.BG_COLOR,
             fg=self.SYSTEM_COLOR,
             anchor=tk.W
@@ -306,7 +306,7 @@ class ChatClient:
         user_label = tk.Label(
             user_panel,
             text="[ USERS ONLINE ]",
-            font=("Courier", 9, "bold"),
+            font=("Courier New", 9, "bold"),
             bg=self.PANEL_COLOR,
             fg=self.USER_COLOR
         )
@@ -315,7 +315,7 @@ class ChatClient:
         # User listbox - reduced height to fit input box
         self.user_listbox = tk.Listbox(
             user_panel,
-            font=("Courier", 11),
+            font=("Courier New", 11),
             bg=self.PANEL_COLOR,
             fg=self.TEXT_COLOR,
             selectbackground=self.BUTTON_COLOR,
@@ -336,9 +336,9 @@ class ChatClient:
         chat_label = tk.Label(
             chat_panel,
             text="[ GROUP CHAT ]",
-            font=("Courier", 9, "bold"),
+            font=("Courier New", 9, "bold"),
             bg=self.PANEL_COLOR,
-            fg=self.TEXT_COLOR
+            fg=self.USER_COLOR  # Same blue as USERS ONLINE
         )
         chat_label.pack(pady=5)
 
@@ -366,6 +366,7 @@ class ChatClient:
         self.chat_display.tag_config("system", foreground=self.SYSTEM_COLOR)
         self.chat_display.tag_config("prompt", foreground=self.PROMPT_COLOR)
         self.chat_display.tag_config("time", foreground=self.PROMPT_COLOR)
+        self.chat_display.tag_config("time_right", foreground=self.PROMPT_COLOR, justify=tk.RIGHT)  # Right-aligned timestamp
         self.chat_display.tag_config("dm", foreground=self.DM_COLOR)
         self.chat_display.tag_config("text", foreground=self.TEXT_COLOR)
 
@@ -377,7 +378,7 @@ class ChatClient:
         prompt_label = tk.Label(
             input_frame,
             text=">>>",
-            font=("Courier", 12, "bold"),
+            font=("Courier New", 12, "bold"),
             bg=self.PANEL_COLOR,
             fg=self.PROMPT_COLOR
         )
@@ -401,7 +402,7 @@ class ChatClient:
             input_frame,
             text="SEND",
             command=self.send_message,
-            font=("Courier", 9, "bold"),
+            font=("Courier New", 9, "bold"),
             bg=self.BUTTON_COLOR,
             fg=self.BG_COLOR,
             activebackground=self.TEXT_COLOR,
@@ -423,9 +424,9 @@ class ChatClient:
         conv_header = tk.Label(
             left_frame,
             text="[ CONVERSATIONS ]",
-            font=("Courier", 9, "bold"),
+            font=("Courier New", 9, "bold"),
             bg=self.PANEL_COLOR,
-            fg="#50fa7b"
+            fg=self.USER_COLOR  # Same blue as other headers
         )
         conv_header.pack(pady=5)
 
@@ -433,7 +434,7 @@ class ChatClient:
         self.conv_listbox = tk.Listbox(
             left_frame,
             font=("Courier New", 14),  # Increased font size to match other text
-            bg="#1a1f2e",
+            bg=self.PANEL_COLOR,  # Black background like group chat
             fg=self.TEXT_COLOR,
             selectbackground="#44475a",
             selectforeground="#f8f8f2",
@@ -451,12 +452,16 @@ class ChatClient:
         # Bind selection event
         self.conv_listbox.bind('<<ListboxSelect>>', self.on_conversation_select)
 
+        # Buttons frame for new message and archive
+        buttons_frame = tk.Frame(left_frame, bg=self.PANEL_COLOR)
+        buttons_frame.pack(pady=5, padx=5, fill=tk.X)
+
         # New message button
         new_msg_btn = tk.Button(
-            left_frame,
-            text="[ NEW MESSAGE ]",
+            buttons_frame,
+            text="[ NEW ]",
             command=self.new_inbox_message,
-            font=("Courier", 9, "bold"),
+            font=("Courier New", 9, "bold"),
             bg="#7b2cbf",
             fg="#00ff41",
             activebackground="#00ff41",
@@ -465,7 +470,23 @@ class ChatClient:
             bd=3,
             cursor="hand2"
         )
-        new_msg_btn.pack(pady=5, padx=5, fill=tk.X)
+        new_msg_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 2))
+
+        # Archive button
+        archive_btn = tk.Button(
+            buttons_frame,
+            text="[ ARCHIVE ]",
+            command=self.archive_conversation,
+            font=("Courier New", 9, "bold"),
+            bg="#ff5555",  # Red color for archive
+            fg="#ffffff",
+            activebackground="#ffffff",
+            activeforeground="#ff5555",
+            relief=tk.RAISED,
+            bd=3,
+            cursor="hand2"
+        )
+        archive_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(2, 0))
 
         # Right panel - Message view
         right_frame = tk.Frame(self.inbox_view_frame, bg=self.PANEL_COLOR, relief=tk.RIDGE, bd=3,
@@ -475,9 +496,9 @@ class ChatClient:
         msg_header = tk.Label(
             right_frame,
             text="[ MESSAGE THREAD ]",
-            font=("Courier", 9, "bold"),
+            font=("Courier New", 9, "bold"),
             bg=self.PANEL_COLOR,
-            fg="#50fa7b"
+            fg=self.USER_COLOR  # Same blue as other headers
         )
         msg_header.pack(pady=5)
 
@@ -485,7 +506,7 @@ class ChatClient:
         self.inbox_msg_display = tk.Text(
             right_frame,
             font=("Courier New", 14),
-            bg="#1a1f2e",
+            bg=self.PANEL_COLOR,  # Black background like group chat
             fg=self.TEXT_COLOR,
             state=tk.DISABLED,
             wrap=tk.WORD,
@@ -513,7 +534,7 @@ class ChatClient:
         prompt_label = tk.Label(
             input_frame,
             text=">>>",
-            font=("Courier", 12, "bold"),
+            font=("Courier New", 12, "bold"),
             bg=self.PANEL_COLOR,
             fg=self.PROMPT_COLOR
         )
@@ -534,7 +555,7 @@ class ChatClient:
             input_frame,
             text="SEND",
             command=self.send_inbox_reply,
-            font=("Courier", 9, "bold"),
+            font=("Courier New", 9, "bold"),
             bg=self.BUTTON_COLOR,
             fg=self.BG_COLOR,
             activebackground=self.TEXT_COLOR,
@@ -593,13 +614,15 @@ class ChatClient:
             unread = conv['unread']
             preview = conv['preview']
 
-            # Format: "★ username (2)" for unread, "  username" for read
+            # Add > indicator for active conversation (like users online)
+            prefix = ">" if user == self.current_conversation else " "
+
+            # Format: "> username" or " username" with unread indicator if needed
             if unread > 0:
-                display = f"★ {user} ({unread})"
+                display = f" {prefix} ★ {user} ({unread})"
                 self.conv_listbox.insert(tk.END, display)
-                # Set color for unread (will need custom item coloring)
             else:
-                display = f"  {user}"
+                display = f" {prefix} {user}"
                 self.conv_listbox.insert(tk.END, display)
 
     def on_conversation_select(self, event):
@@ -700,6 +723,53 @@ class ChatClient:
         from chat.client.inbox_ui import InboxUI
         inbox = InboxUI(self.root, self)
         inbox.new_message()
+
+    def archive_conversation(self):
+        """Archive the currently selected conversation."""
+        if not self.current_conversation:
+            self.display_message(">> No conversation selected to archive", "system")
+            return
+
+        # Confirm archive action
+        from tkinter import messagebox
+        confirm = messagebox.askyesno(
+            "Archive Conversation",
+            f"Archive conversation with {self.current_conversation}?\n\n"
+            f"This will remove it from your inbox and save it for review.\n"
+            f"This action cannot be undone."
+        )
+
+        if not confirm:
+            return
+
+        try:
+            # Send archive request to server
+            self.message_router.send(f'ARCHIVE_DM:{self.current_conversation}')
+            response = self.message_router.get_dm_response(timeout=2.0)
+
+            if response.startswith('ARCHIVE_DM_RESULT:'):
+                parts = response[18:].split(':', 1)
+                success = parts[0] == 'True'
+
+                if success:
+                    self.display_message(f">> Conversation with {self.current_conversation} archived", "system")
+                    # Clear current conversation
+                    self.current_conversation = None
+                    # Refresh inbox to update list
+                    self.load_inbox()
+                    # Clear message display
+                    if self.inbox_msg_display:
+                        self.inbox_msg_display.config(state=tk.NORMAL)
+                        self.inbox_msg_display.delete('1.0', tk.END)
+                        self.inbox_msg_display.config(state=tk.DISABLED)
+                else:
+                    error_msg = parts[1] if len(parts) > 1 else "Unknown error"
+                    self.display_message(f">> Failed to archive: {error_msg}", "system")
+
+        except TimeoutError:
+            self.display_message(">> Server timeout - archive failed", "system")
+        except Exception as e:
+            self.display_message(f">> Archive error: {e}", "system")
 
     def _on_inbox_dm_received(self, sender, message):
         """Callback when DM arrives while inbox view is active.
@@ -923,22 +993,11 @@ class ChatClient:
             self.chat_display.insert(tk.END, f"{message}\n", "text")
         else:
             # System message format with retro symbols
-            # Add retro prefix: ►►►
-            prefix = "►►► "
-            content = prefix + message
-            content_length = len(content)
-            padding_needed = target_width - content_length - len(timestamp_str)
-
-            # Ensure at least 2 spaces before timestamp
-            if padding_needed < 2:
-                padding_needed = 2
-
-            padding = " " * padding_needed
-
+            # Use right-aligned timestamp instead of padding to prevent wrapping
             self.chat_display.insert(tk.END, "►►► ", "prompt")
             self.chat_display.insert(tk.END, message, tag)
-            self.chat_display.insert(tk.END, padding, "text")
-            self.chat_display.insert(tk.END, f"{timestamp_str}\n", "time")
+            self.chat_display.insert(tk.END, "\n")
+            self.chat_display.insert(tk.END, f"{timestamp_str}\n", "time_right")
 
         self.chat_display.see(tk.END)
         self.chat_display.config(state=tk.DISABLED)
@@ -1342,7 +1401,7 @@ def show_login_dialog(parent):
     tk.Label(
         dialog,
         text="░▒▓█ SECURE CHAT █▓▒░",
-        font=("Courier", 12, "bold"),
+        font=("Courier New", 12, "bold"),
         bg="#282a36",
         fg="#8be9fd"
     ).pack(pady=(20, 10))
@@ -1350,14 +1409,14 @@ def show_login_dialog(parent):
     tk.Label(
         dialog,
         text="Enter your handle:",
-        font=("Courier", 10),
+        font=("Courier New", 10),
         bg="#282a36",
         fg="#50fa7b"
     ).pack(pady=5)
 
     username_entry = tk.Entry(
         dialog,
-        font=("Courier", 11),
+        font=("Courier New", 11),
         bg="#44475a",
         fg="#f8f8f2",
         insertbackground="#f8f8f2",
@@ -1380,7 +1439,7 @@ def show_login_dialog(parent):
         dialog,
         text="[ CONNECT ]",
         command=on_ok,
-        font=("Courier", 10, "bold"),
+        font=("Courier New", 10, "bold"),
         bg="#bd93f9",
         fg="#282a36",
         activebackground="#ff79c6",

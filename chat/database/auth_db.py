@@ -67,6 +67,20 @@ class AuthDB:
             )
         ''')
 
+        # Archived direct messages (for review, no restore)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS archived_direct_messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                sender TEXT NOT NULL,
+                recipient TEXT NOT NULL,
+                message TEXT NOT NULL,
+                sent_at TIMESTAMP,
+                is_read BOOLEAN,
+                archived_by TEXT NOT NULL,
+                archived_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
         self.conn.commit()
 
     def hash_password(self, password: str) -> str:
@@ -213,6 +227,47 @@ class AuthDB:
             (recipient, sender)
         )
         self.conn.commit()
+
+    def archive_conversation(self, user: str, other_user: str) -> bool:
+        """Archive all messages between user and other_user.
+
+        Moves messages to archived_direct_messages table and deletes from active direct_messages.
+        This is permanent - no restore functionality.
+
+        Args:
+            user: The user archiving the conversation
+            other_user: The other participant in the conversation
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            cursor = self.conn.cursor()
+
+            # Copy all messages between these users to archive
+            cursor.execute('''
+                INSERT INTO archived_direct_messages
+                    (sender, recipient, message, sent_at, is_read, archived_by)
+                SELECT sender, recipient, message, sent_at, is_read, ?
+                FROM direct_messages
+                WHERE (sender = ? AND recipient = ?)
+                   OR (sender = ? AND recipient = ?)
+            ''', (user, user, other_user, other_user, user))
+
+            # Delete the messages from active table
+            cursor.execute('''
+                DELETE FROM direct_messages
+                WHERE (sender = ? AND recipient = ?)
+                   OR (sender = ? AND recipient = ?)
+            ''', (user, other_user, other_user, user))
+
+            self.conn.commit()
+            return True
+
+        except Exception as e:
+            self.conn.rollback()
+            print(f"Error archiving conversation: {e}")
+            return False
 
     def add_chat_message(self, username: str, message: str, session_id: str):
         """Add message to current chat history."""

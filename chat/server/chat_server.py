@@ -322,6 +322,9 @@ class ImprovedChatServer:
             elif data.startswith('DM_MARK_READ:'):
                 self._handle_dm_mark_read(client_socket, username, data[13:])
 
+            elif data.startswith('ARCHIVE_DM:'):
+                self._handle_archive_dm(client_socket, username, data[11:])
+
             elif data.startswith('OP_LIST:'):
                 self._handle_op_list(client_socket)
 
@@ -421,6 +424,19 @@ class ImprovedChatServer:
         """Handle marking conversation as read."""
         self.auth_db.mark_conversation_read(username, sender)
         client_socket.send(b'DM_MARKED_READ:OK\n')
+
+    def _handle_archive_dm(self, client_socket: socket.socket, username: str, other_user: str):
+        """Handle archiving a DM conversation."""
+        try:
+            # Archive the conversation (moves messages to archive table, removes from active inbox)
+            success = self.auth_db.archive_conversation(username, other_user)
+            if success:
+                client_socket.send(b'ARCHIVE_DM_RESULT:True:Conversation archived\n')
+            else:
+                client_socket.send(b'ARCHIVE_DM_RESULT:False:Failed to archive conversation\n')
+        except Exception as e:
+            chat_logger.error(f"Error archiving conversation for {username} with {other_user}: {e}")
+            client_socket.send(f'ARCHIVE_DM_RESULT:False:{str(e)}\n'.encode('utf-8'))
 
     def _handle_op_list(self, client_socket: socket.socket):
         """Handle operation list request."""
