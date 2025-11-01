@@ -682,12 +682,12 @@ class OperationsClient:
         submit_iir_btn.pack(pady=10)
 
         # Posts display
-        posts_frame = tk.Frame(self.main_frame, bg=self.PANEL_COLOR, relief=tk.RIDGE, bd=3,
-                               highlightbackground=self.TEXT_COLOR, highlightthickness=2)
-        posts_frame.pack(pady=5, fill=tk.BOTH, expand=True)
+        self.posts_frame = tk.Frame(self.main_frame, bg=self.PANEL_COLOR, relief=tk.RIDGE, bd=3,
+                                     highlightbackground=self.TEXT_COLOR, highlightthickness=2)
+        self.posts_frame.pack(pady=5, fill=tk.BOTH, expand=True)
 
         tk.Label(
-            posts_frame,
+            self.posts_frame,
             text="[ THREAD POSTS ]",
             font=("Courier", 9, "bold"),
             bg=self.PANEL_COLOR,
@@ -695,7 +695,7 @@ class OperationsClient:
         ).pack(pady=5)
 
         self.posts_display = scrolledtext.ScrolledText(
-            posts_frame,
+            self.posts_frame,
             font=("Courier", 9),
             bg=self.BG_COLOR,
             fg=self.ACCENT_COLOR,
@@ -1249,18 +1249,20 @@ class OperationsClient:
         self.form_mode = mode
 
         if mode == "post":
-            # Show post form, hide IIR form
+            # Show post form and posts display, hide IIR form
             self.post_form_frame.pack(pady=5, fill=tk.X)
             self.iir_form_frame.pack_forget()
+            self.posts_frame.pack(pady=5, fill=tk.BOTH, expand=True)
             # Update button states
             self.post_toggle_btn.config(relief=tk.SUNKEN, bg=self.BUTTON_COLOR, fg=self.ACCENT_COLOR)
-            self.iir_toggle_btn.config(relief=tk.RAISED, bg=self.PANEL_COLOR, fg=self.TEXT_COLOR)
+            self.iir_toggle_btn.config(relief=tk.RAISED, bg=self.SYSTEM_COLOR, fg=self.BG_COLOR)
         else:  # mode == "iir"
-            # Hide post form, show IIR form
+            # Hide post form and posts display, show IIR form taking all space
             self.post_form_frame.pack_forget()
-            self.iir_form_frame.pack(pady=5, fill=tk.X)
+            self.posts_frame.pack_forget()
+            self.iir_form_frame.pack(pady=5, fill=tk.BOTH, expand=True)
             # Update button states
-            self.post_toggle_btn.config(relief=tk.RAISED, bg=self.PANEL_COLOR, fg=self.TEXT_COLOR)
+            self.post_toggle_btn.config(relief=tk.RAISED, bg=self.SYSTEM_COLOR, fg=self.BG_COLOR)
             self.iir_toggle_btn.config(relief=tk.SUNKEN, bg=self.BUTTON_COLOR, fg=self.ACCENT_COLOR)
 
     def _browse_iir_file(self):
