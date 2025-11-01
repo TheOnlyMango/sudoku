@@ -807,7 +807,7 @@ class OperationsClient:
         for group_idx, char_count in enumerate(char_groups):
             # Add spacing between groups
             if group_idx > 0:
-                tk.Frame(ticker_frame, width=3, bg=self.PANEL_COLOR).pack(side=tk.LEFT)
+                tk.Frame(ticker_frame, width=2, bg=self.PANEL_COLOR).pack(side=tk.LEFT)
 
             # Group frame for this DTG component
             group_frame = tk.Frame(ticker_frame, bg=self.PANEL_COLOR)
@@ -821,14 +821,14 @@ class OperationsClient:
                     font=("Courier", 10, "bold"),
                     bg="#0a0e14",  # Dark LCD background
                     fg=self.ACCENT_COLOR,  # Green glow
-                    width=2,
+                    width=1,
                     height=1,
                     relief=tk.FLAT,
                     bd=1,
                     highlightbackground=self.ACCENT_COLOR,  # Glow effect
                     highlightthickness=1
                 )
-                char_label.pack(side=tk.LEFT, padx=1, pady=2)
+                char_label.pack(side=tk.LEFT, padx=0, pady=2)
                 ticker_labels.append(char_label)
                 char_index += 1
 
@@ -1480,7 +1480,10 @@ class OperationsClient:
             self.message_router.send(message)
             response = self.message_router.get_operation_response(timeout=10.0)
 
-            if response.startswith('IIR_SUBMIT_RESULT:'):
+            # Debug: print response to see what we actually got
+            print(f"IIR SUBMIT DEBUG: Received response: {repr(response)}")
+
+            if response and response.startswith('IIR_SUBMIT_RESULT:'):
                 parts = response[18:].split(':', 1)
                 success = parts[0] == 'True'
                 result = parts[1] if len(parts) > 1 else ""
@@ -1516,10 +1519,16 @@ class OperationsClient:
                     self._load_posts()
                 else:
                     self._show_message(f"✗ {result}", self.ERROR_COLOR)
+            else:
+                # Unexpected response format
+                print(f"IIR SUBMIT ERROR: Unexpected response format: {repr(response)}")
+                self._show_message(f"✗ Unexpected server response", self.ERROR_COLOR)
 
         except TimeoutError:
+            print("IIR SUBMIT ERROR: Timeout waiting for server response")
             self._show_message("Server timeout - IIR may be too large", self.ERROR_COLOR)
         except Exception as e:
+            print(f"IIR SUBMIT ERROR: Exception occurred: {e}")
             self._show_message(f"Error: {e}", self.ERROR_COLOR)
 
     def _load_iirs(self):
