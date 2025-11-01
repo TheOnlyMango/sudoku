@@ -163,8 +163,9 @@ class InboxUI:
         self.message_display.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
         # Configure tags for message display
-        self.message_display.tag_config("sent", foreground="#8be9fd")  # Cyan for sent
-        self.message_display.tag_config("received", foreground="#ff79c6")  # Pink for received
+        import tkinter as tk
+        self.message_display.tag_config("sent", foreground="#8be9fd", justify=tk.RIGHT)  # Cyan for sent, right-aligned
+        self.message_display.tag_config("received", foreground="#ff79c6", justify=tk.LEFT)  # Pink for received, left-aligned
         self.message_display.tag_config("time", foreground=self.PROMPT_COLOR)
         self.message_display.tag_config("prompt", foreground=self.PROMPT_COLOR)
 
@@ -337,13 +338,10 @@ class InboxUI:
             # Determine if sent or received
             if sender == self.chat_client.username:
                 # Sent message - aligned right like iPhone, no username
-                padding = " " * 50  # Right-align padding
-                self.message_display.insert(tk.END, f"{padding}[{time_str}] ", "time")
-                self.message_display.insert(tk.END, f"{message}\n\n", "sent")
+                self.message_display.insert(tk.END, f"[{time_str}] {message}\n\n", "sent")
             else:
                 # Received message - aligned left, no username
-                self.message_display.insert(tk.END, f"[{time_str}] ", "time")
-                self.message_display.insert(tk.END, f"{message}\n\n", "received")
+                self.message_display.insert(tk.END, f"[{time_str}] {message}\n\n", "received")
 
         self.message_display.see(tk.END)
         self.message_display.config(state=tk.DISABLED)
@@ -549,13 +547,10 @@ class InboxUI:
                 # Display message using iPhone-style format (same as display_conversation)
                 if sender == self.chat_client.username:
                     # Our message - aligned right, no username
-                    padding = " " * 50
-                    self.message_display.insert(tk.END, f"{padding}[{time_str}] ", "time")
-                    self.message_display.insert(tk.END, f"{message}\n\n", "sent")
+                    self.message_display.insert(tk.END, f"[{time_str}] {message}\n\n", "sent")
                 else:
                     # Their message - aligned left, no username
-                    self.message_display.insert(tk.END, f"[{time_str}] ", "time")
-                    self.message_display.insert(tk.END, f"{message}\n\n", "received")
+                    self.message_display.insert(tk.END, f"[{time_str}] {message}\n\n", "received")
 
             self.message_display.config(state=tk.DISABLED)
 

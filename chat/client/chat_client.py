@@ -494,9 +494,10 @@ class ChatClient:
         self.inbox_msg_display.pack(padx=5, pady=5, fill=tk.BOTH)
 
         # Configure tags for inbox messages
-        self.inbox_msg_display.tag_config("sent", foreground="#8be9fd")  # Cyan for sent
-        self.inbox_msg_display.tag_config("received", foreground="#50fa7b")  # Green for received
+        self.inbox_msg_display.tag_config("sent", foreground="#8be9fd", justify=tk.RIGHT)  # Cyan for sent, right-aligned
+        self.inbox_msg_display.tag_config("received", foreground="#50fa7b", justify=tk.LEFT)  # Green for received, left-aligned
         self.inbox_msg_display.tag_config("time", foreground=self.PROMPT_COLOR)
+        self.inbox_msg_display.tag_config("time_right", foreground=self.PROMPT_COLOR, justify=tk.RIGHT)
 
         # Input area for replies - pack inside right_frame (not inbox_view_frame)
         input_frame = tk.Frame(right_frame, bg=self.PANEL_COLOR)
@@ -645,16 +646,10 @@ class ChatClient:
             # Determine if sent or received
             if sender == self.username:
                 # Your messages - aligned right, no username
-                tag = "sent"
-                # Right-align by adding padding before timestamp
-                padding = " " * 50  # Adjust padding for right alignment
-                self.inbox_msg_display.insert(tk.END, f"{padding}[{time_str}] ", "time")
-                self.inbox_msg_display.insert(tk.END, f"{message_text}\n", tag)
+                self.inbox_msg_display.insert(tk.END, f"[{time_str}] {message_text}\n", "sent")
             else:
                 # Their messages - aligned left, no username
-                tag = "received"
-                self.inbox_msg_display.insert(tk.END, f"[{time_str}] ", "time")
-                self.inbox_msg_display.insert(tk.END, f"{message_text}\n", tag)
+                self.inbox_msg_display.insert(tk.END, f"[{time_str}] {message_text}\n", "received")
 
         self.inbox_msg_display.config(state=tk.DISABLED)
         self.inbox_msg_display.see(tk.END)
