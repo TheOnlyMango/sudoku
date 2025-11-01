@@ -168,7 +168,8 @@ class ImprovedChatServer:
 
         try:
             # Set socket timeout to prevent hanging on shutdown
-            client_socket.settimeout(2.0)
+            # Increased to 10s for Windows/Tailscale compatibility
+            client_socket.settimeout(10.0)
 
             # Request authentication
             client_socket.send(b'AUTH_REQUIRED:\n')
@@ -236,9 +237,13 @@ class ImprovedChatServer:
             client_socket.send(f'USERLIST:{user_list}\n'.encode('utf-8'))
 
             # Send chat history for this session
-            history = self.auth_db.get_chat_history(self.session_id)
-            for msg in history:
-                client_socket.send(f'HISTORY:{msg["username"]}:{msg["timestamp"]}:{msg["message"]}\n'.encode('utf-8'))
+            try:
+                history = self.auth_db.get_chat_history(self.session_id)
+                for msg in history:
+                    client_socket.send(f'HISTORY:{msg["username"]}:{msg["timestamp"]}:{msg["message"]}\n'.encode('utf-8'))
+            except (socket.timeout, ConnectionError, OSError) as e:
+                chat_logger.debug(f"History send interrupted for {username}: {e}")
+                # Non-fatal - client can request history later via MessageRouter
 
             # Send offline messages (not for anon users)
             if not is_anon:
@@ -294,7 +299,12 @@ class ImprovedChatServer:
                     self._process_command(client_socket, username, token, data)
 
         except Exception as e:
-            chat_logger.error(f"Client connection error from {address[0]}: {e}")
+            # Check if this is a Windows socket abort (non-fatal after successful auth)
+            error_str = str(e)
+            if "WinError 10053" in error_str or "WSAECONNABORTED" in error_str or "10053" in error_str:
+                chat_logger.info(f"Client {address[0]} disconnected during handshake (Windows socket cleanup - non-fatal)")
+            else:
+                chat_logger.error(f"Client connection error from {address[0]}: {e}")
 
         finally:
             self.remove_client(client_socket)
