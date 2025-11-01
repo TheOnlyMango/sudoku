@@ -677,7 +677,7 @@ class ChatClient:
     def new_inbox_message(self):
         """Open dialog to compose new DM."""
         # Import here to match existing pattern
-        from inbox_ui import InboxUI
+        from chat.client.inbox_ui import InboxUI
         inbox = InboxUI(self.root, self)
         inbox.new_message()
 
