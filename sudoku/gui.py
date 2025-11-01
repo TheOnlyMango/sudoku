@@ -866,7 +866,7 @@ class SudokuGUI:
         try:
             # Load server config
             config = ChatConfig()
-            host, port = config.get_server_address()
+            host, port = config.get_client_config()  # Get client connection config
 
             # Attempt to connect with short timeout
             test_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
