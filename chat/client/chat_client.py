@@ -57,6 +57,9 @@ class ChatClient:
         self.response_lock = threading.Lock()
         self.request_counter = 0
 
+        # DM event callbacks
+        self.dm_callbacks = []  # List of callbacks: [(callback_func, filter_sender)]
+
         # Typing indicator state
         self.typing_users = {}  # {username: timestamp}
         self.typing_timer = None
@@ -681,6 +684,23 @@ class ChatClient:
         inbox = InboxUI(self.root, self)
         inbox.new_message()
 
+    def register_dm_callback(self, callback, sender_filter=None):
+        """Register callback to be called when DM arrives.
+
+        Args:
+            callback: Function to call with (sender, message) when DM arrives
+            sender_filter: Only call for DMs from this sender (None = all senders)
+        """
+        self.dm_callbacks.append((callback, sender_filter))
+
+    def unregister_dm_callback(self, callback):
+        """Unregister a DM callback.
+
+        Args:
+            callback: The callback function to remove
+        """
+        self.dm_callbacks = [(cb, filt) for cb, filt in self.dm_callbacks if cb != callback]
+
     def get_user_color(self, username):
         """Get consistent color for a username based on hash.
 
@@ -954,6 +974,14 @@ class ChatClient:
             if len(parts) == 2:
                 sender, msg = parts
                 self.display_message(f"[DM from {sender}] {msg}", "dm")
+
+                # Trigger DM callbacks for real-time inbox updates
+                for callback, sender_filter in self.dm_callbacks:
+                    if sender_filter is None or sender_filter == sender:
+                        try:
+                            callback(sender, msg)
+                        except Exception as e:
+                            print(f"Error in DM callback: {e}")
 
         elif message.startswith('OFFLINE:'):
             # Format: OFFLINE:sender:timestamp:message

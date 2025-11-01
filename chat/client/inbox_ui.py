@@ -251,9 +251,11 @@ class InboxUI:
         )
         footer.pack(side=tk.BOTTOM, pady=5)
 
-        # Load inbox data and start auto-refresh
+        # Load inbox data
         self.load_inbox()
-        self.start_auto_refresh()
+
+        # Register for DM events (real-time updates instead of polling)
+        self.chat_client.register_dm_callback(self.on_dm_received)
 
     def load_inbox(self):
         """Request inbox data from server."""
@@ -496,17 +498,13 @@ class InboxUI:
         cancel_btn.pack(side=tk.RIGHT, padx=5)
 
     def start_auto_refresh(self):
-        """Start auto-refreshing inbox and conversation every second for live updates."""
-        if self.inbox_window and self.inbox_window.winfo_exists():
-            # Refresh inbox list
-            self.load_inbox()
+        """DEPRECATED: Polling replaced with event-driven callbacks.
 
-            # If viewing a conversation, refresh it too
-            if self.current_conversation:
-                self.refresh_current_conversation()
-
-            # Schedule next refresh (1 second for faster updates)
-            self.auto_refresh_id = self.root.after(1000, self.start_auto_refresh)
+        This method is kept for backwards compatibility but does nothing.
+        Real-time updates now use on_dm_received() callback instead of polling.
+        """
+        # No longer needed - using event-driven callbacks instead of polling
+        pass
 
     def refresh_current_conversation(self):
         """Refresh the currently open conversation, scroll to bottom if new messages."""
@@ -579,13 +577,40 @@ class InboxUI:
                 # Restore scroll position if not at bottom and no new messages
                 self.message_display.yview_moveto(scroll_pos[0])
 
+    def on_dm_received(self, sender, message):
+        """Callback when new DM arrives - update inbox in real-time.
+
+        Args:
+            sender: Username who sent the DM
+            message: Message content
+        """
+        # Use thread-safe GUI update
+        if self.inbox_window and self.inbox_window.winfo_exists():
+            self.root.after(0, lambda: self._handle_new_dm(sender))
+
+    def _handle_new_dm(self, sender):
+        """Handle new DM in GUI thread.
+
+        Args:
+            sender: Username who sent the DM
+        """
+        # Reload inbox to update conversation list (unread counts, etc.)
+        self.load_inbox()
+
+        # If viewing conversation with this sender, refresh it immediately
+        if self.current_conversation == sender:
+            self.refresh_current_conversation()
+
     def close_inbox(self):
-        """Close inbox and cancel auto-refresh."""
-        # Cancel auto-refresh timer
+        """Close inbox and unregister callbacks."""
+        # Unregister DM callback
+        self.chat_client.unregister_dm_callback(self.on_dm_received)
+
+        # Cancel auto-refresh timer (if still exists from old code)
         if self.auto_refresh_id:
             self.root.after_cancel(self.auto_refresh_id)
             self.auto_refresh_id = None
-        
+
         # Close window
         if self.inbox_window:
             self.inbox_window.destroy()
