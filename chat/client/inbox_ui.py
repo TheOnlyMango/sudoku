@@ -372,10 +372,7 @@ class InboxUI:
         if self.chat_client.send_dm(self.current_conversation, message):
             # Clear input
             self.reply_entry.delete(0, tk.END)
-
-            # Reload conversation to show new message
-            time.sleep(0.2)  # Brief delay for DB write
-            self.load_conversation(self.current_conversation)
+            # Note: Conversation will auto-refresh via callback triggered in send_dm()
         else:
             messagebox.showerror("Error", "Failed to send message")
 
@@ -463,9 +460,7 @@ class InboxUI:
 
             if self.chat_client.send_dm(recipient, message):
                 dialog.destroy()
-                # Refresh inbox after brief delay
-                time.sleep(0.2)
-                self.load_inbox()
+                # Note: Inbox will auto-refresh via callback triggered in send_dm()
             else:
                 messagebox.showerror("Error", "Failed to send message")
 

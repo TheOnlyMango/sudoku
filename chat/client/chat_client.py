@@ -1156,6 +1156,16 @@ class ChatClient:
 
         try:
             self.message_router.send(f'DM:{recipient}:{message}')
+
+            # Trigger DM callbacks for outgoing messages too (so inbox updates when YOU send)
+            for callback, sender_filter in self.dm_callbacks:
+                # For outgoing messages, pass recipient as "sender" so inbox knows which conversation to update
+                if sender_filter is None or sender_filter == recipient:
+                    try:
+                        callback(recipient, message)
+                    except Exception as e:
+                        print(f"Error in DM callback (outgoing): {e}")
+
             return True
         except:
             return False
