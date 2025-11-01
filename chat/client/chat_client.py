@@ -668,9 +668,16 @@ class ChatClient:
             message_text = msg['message']
             timestamp = msg['timestamp']
 
-            # Parse timestamp
+            # Parse timestamp and convert from UTC to server's local time
             try:
+                # Parse as UTC timestamp from database
                 dt = datetime.fromisoformat(timestamp)
+                # If timestamp is naive (no timezone), assume UTC from database
+                if dt.tzinfo is None:
+                    from datetime import timezone
+                    dt = dt.replace(tzinfo=timezone.utc)
+                # Convert to local system time (same as server in most cases)
+                dt = dt.astimezone()
             except:
                 dt = None
 
