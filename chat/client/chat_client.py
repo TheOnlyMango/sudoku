@@ -965,8 +965,16 @@ class ChatClient:
                 parts = message[1:].split(' ', 1)
                 if len(parts) == 2:
                     recipient, dm_message = parts
-                    self.message_router.send(f'DM:{recipient}:{dm_message}')
-                    self.display_message(f"[DM to {recipient}]", "dm")
+                    # Validate recipient exists and is not anonymous
+                    if recipient not in self.users:
+                        self.display_message(f">> ERROR: User '{recipient}' not found", "system")
+                    elif self.users.get(recipient, False):  # Check if user is anonymous
+                        self.display_message(f">> ERROR: Cannot DM anonymous user '{recipient}'", "system")
+                    elif recipient == self.username:
+                        self.display_message(">> ERROR: Cannot DM yourself", "system")
+                    else:
+                        self.message_router.send(f'DM:{recipient}:{dm_message}')
+                        self.display_message(f"[DM to {recipient}]", "dm")
                 else:
                     self.display_message(">> Usage: @username message", "system")
             # Check if it's a DM (/msg username message) - legacy support
@@ -974,8 +982,16 @@ class ChatClient:
                 parts = message[5:].split(' ', 1)
                 if len(parts) == 2:
                     recipient, dm_message = parts
-                    self.message_router.send(f'DM:{recipient}:{dm_message}')
-                    self.display_message(f"[DM to {recipient}]", "dm")
+                    # Validate recipient exists and is not anonymous
+                    if recipient not in self.users:
+                        self.display_message(f">> ERROR: User '{recipient}' not found", "system")
+                    elif self.users.get(recipient, False):  # Check if user is anonymous
+                        self.display_message(f">> ERROR: Cannot DM anonymous user '{recipient}'", "system")
+                    elif recipient == self.username:
+                        self.display_message(">> ERROR: Cannot DM yourself", "system")
+                    else:
+                        self.message_router.send(f'DM:{recipient}:{dm_message}')
+                        self.display_message(f"[DM to {recipient}]", "dm")
                 else:
                     self.display_message(">> Usage: /msg username message", "system")
             else:
