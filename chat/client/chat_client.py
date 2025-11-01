@@ -429,27 +429,24 @@ class ChatClient:
         )
         conv_header.pack(pady=5)
 
-        # Conversations listbox with scrollbar
-        conv_scroll_frame = tk.Frame(left_frame, bg=self.PANEL_COLOR)
-        conv_scroll_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
-
-        conv_scrollbar = tk.Scrollbar(conv_scroll_frame)
-        conv_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-
+        # Conversations listbox (no scrollbar, just mouse wheel)
         self.conv_listbox = tk.Listbox(
-            conv_scroll_frame,
-            font=("Courier", 9),
+            left_frame,
+            font=("Courier New", 14),  # Increased font size to match other text
             bg="#1a1f2e",
             fg=self.TEXT_COLOR,
             selectbackground="#44475a",
             selectforeground="#f8f8f2",
             relief=tk.FLAT,
             bd=0,
-            highlightthickness=0,
-            yscrollcommand=conv_scrollbar.set
+            highlightthickness=0
         )
-        self.conv_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        conv_scrollbar.config(command=self.conv_listbox.yview)
+        self.conv_listbox.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+
+        # Enable mouse wheel scrolling
+        def _on_conv_mousewheel(event):
+            self.conv_listbox.yview_scroll(int(-1*(event.delta/120)), "units")
+        self.conv_listbox.bind("<MouseWheel>", _on_conv_mousewheel)
 
         # Bind selection event
         self.conv_listbox.bind('<<ListboxSelect>>', self.on_conversation_select)
@@ -658,15 +655,8 @@ class ChatClient:
             if dt:
                 if last_timestamp is None or (dt - last_timestamp).total_seconds() > 1800:  # 1800s = 30 min
                     time_str = dt.strftime('%H:%M')
-                    # Right-aligned timestamp header (like user@shnet format)
-                    # Calculate padding to right-align timestamp
-                    timestamp_str = f"[{time_str}]"
-                    target_width = 60  # Adjusted for inbox width
-                    padding_needed = target_width - len(timestamp_str)
-                    if padding_needed < 0:
-                        padding_needed = 0
-                    padding = " " * padding_needed
-                    self.inbox_msg_display.insert(tk.END, f"{padding}{timestamp_str}\n", "time")
+                    # Centered timestamp header
+                    self.inbox_msg_display.insert(tk.END, f"[{time_str}]\n", "time_center")
                     last_timestamp = dt
 
             # Determine if sent or received
