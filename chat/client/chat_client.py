@@ -673,8 +673,7 @@ class ChatClient:
         # Clear input
         self.inbox_input_entry.delete(0, tk.END)
 
-        # Refresh conversation after a moment
-        self.root.after(500, lambda: self.refresh_current_conversation())
+        # Note: Inbox will auto-refresh via DM_SAVED callback (no manual refresh needed)
 
     def refresh_current_conversation(self):
         """Refresh the currently displayed conversation."""
@@ -697,21 +696,55 @@ class ChatClient:
             sender: Username who sent the DM (for incoming) or recipient (for outgoing via DM_SAVED)
             message: Message content
         """
-        # Use thread-safe GUI update via root.after
-        self.root.after(0, lambda: self._handle_inbox_dm_update(sender))
+        # Run inbox refresh in background thread to avoid blocking GUI
+        # The request_inbox() and request_conversation() methods have blocking waits
+        refresh_thread = threading.Thread(target=self._handle_inbox_dm_update, args=(sender,))
+        refresh_thread.daemon = True
+        refresh_thread.start()
 
     def _handle_inbox_dm_update(self, sender):
-        """Handle inbox DM update in GUI thread.
+        """Handle inbox DM update in background thread.
 
         Args:
             sender: Username who sent the DM or recipient for outgoing
         """
         # Reload inbox to update conversation list (unread counts, preview, etc.)
-        self.load_inbox()
+        # Note: load_inbox() calls update_conversation_list() which updates GUI,
+        # but that's okay because load_inbox() uses the conversation data first
+        conversations = self.request_inbox()  # Blocking call (up to 2 seconds)
 
-        # If viewing conversation with this sender, refresh it immediately
+        if conversations is not None:
+            # Update GUI in GUI thread
+            self.root.after(0, lambda: self._update_inbox_gui(conversations, sender))
+
+    def _update_inbox_gui(self, conversations, sender):
+        """Update inbox GUI with new data (called in GUI thread).
+
+        Args:
+            conversations: Conversation list from server
+            sender: Username who sent the DM
+        """
+        # Update conversation list
+        self.conversations = conversations
+        self.update_conversation_list()
+
+        # If viewing conversation with this sender, refresh it
         if self.current_conversation == sender:
-            self.refresh_current_conversation()
+            # Run in background thread to avoid blocking
+            refresh_thread = threading.Thread(target=self._refresh_conversation_async, args=(sender,))
+            refresh_thread.daemon = True
+            refresh_thread.start()
+
+    def _refresh_conversation_async(self, sender):
+        """Refresh conversation in background thread.
+
+        Args:
+            sender: Username of the conversation to refresh
+        """
+        messages = self.request_conversation(sender)  # Blocking call (up to 2 seconds)
+        if messages:
+            # Update GUI in GUI thread
+            self.root.after(0, lambda: self.display_conversation(messages))
 
     def register_dm_callback(self, callback, sender_filter=None):
         """Register callback to be called when DM arrives.
