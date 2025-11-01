@@ -737,7 +737,7 @@ class OperationsClient:
             fg=self.ACCENT_COLOR,
             insertbackground=self.ACCENT_COLOR,
             state=tk.DISABLED,
-            wrap=tk.WORD,
+            wrap=tk.CHAR,  # Character-level wrapping to prevent box borders from breaking
             relief=tk.FLAT,
             highlightthickness=0
         )
@@ -1286,9 +1286,9 @@ class OperationsClient:
                                                         lambda e: self.posts_display.config(cursor=""))
 
                         # Bottom border (full width)
-                        self.posts_display.insert(tk.END, f"╚{'═' * (BOX_WIDTH - 2)}╝\n", "iir_header")
-                        # Full-width separator
-                        self.posts_display.insert(tk.END, "─" * BOX_WIDTH + "\n\n", "time")
+                        self.posts_display.insert(tk.END, f"╚{'═' * (BOX_WIDTH - 2)}╝", "iir_header")
+                        # Full-width separator (newline before to prevent color bleed)
+                        self.posts_display.insert(tk.END, "\n" + "─" * BOX_WIDTH + "\n", "time")
 
             self.posts_display.config(state=tk.DISABLED)
 
