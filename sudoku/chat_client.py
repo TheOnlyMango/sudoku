@@ -15,6 +15,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from chat_config_reader import get_config
 from auth_ui import AuthUI
 from inbox_ui import InboxUI
+from message_router import MessageRouter
 
 
 class ChatClient:
@@ -40,6 +41,7 @@ class ChatClient:
         self.server_host = server_host if server_host is not None else config_host
         self.server_port = server_port if server_port is not None else config_port
         self.socket = None
+        self.message_router = None  # MessageRouter for socket multiplexing
         self.username = None
         self.password = None  # Store password for authentication
         self.is_anon = False  # Track if user is anonymous
@@ -856,13 +858,13 @@ class ChatClient:
                 parts = message[5:].split(' ', 1)
                 if len(parts) == 2:
                     recipient, dm_message = parts
-                    self.socket.send(f'DM:{recipient}:{dm_message}\n'.encode('utf-8'))
+                    self.message_router.send(f'DM:{recipient}:{dm_message}')
                     self.display_message(f"[DM to {recipient}] {dm_message}", "dm")
                 else:
                     self.display_message(">> Usage: /msg username message", "system")
             else:
                 # Group message
-                self.socket.send(f'MSG:{message}\n'.encode('utf-8'))
+                self.message_router.send(f'MSG:{message}')
                 self.display_message(message, "text", username=self.username)
 
             self.message_entry.delete(0, tk.END)
@@ -871,20 +873,26 @@ class ChatClient:
             # Don't display errors in chat window - only in status bar
             self.status_label.config(text=f">> Error: {e}")
 
-    def receive_messages(self):
-        """Receive messages from server."""
-        buffer = ""
+    def _on_disconnect(self):
+        """Callback when MessageRouter detects disconnection."""
+        if self.running and not self.is_hidden:
+            # Only show disconnect message if we're not just hidden
+            self.display_message("SYSTEM: Disconnected from server", "system")
+            self.update_status("DISCONNECTED", 'red')
 
+    def receive_messages(self):
+        """Receive messages from server using MessageRouter.
+
+        This eliminates the socket race condition by using the router's
+        chat queue instead of directly calling recv() on the socket.
+        """
         while self.running:
             try:
-                data = self.socket.recv(4096).decode('utf-8')
-                if not data:
-                    break
+                # Get message from router's chat queue (100ms timeout)
+                message = self.message_router.get_chat_message(timeout=0.1)
 
-                buffer += data
-                while '\n' in buffer:
-                    line, buffer = buffer.split('\n', 1)
-                    self.process_message(line.strip())
+                if message:
+                    self.process_message(message)
 
             except Exception as e:
                 if self.running:
@@ -892,10 +900,7 @@ class ChatClient:
                     self.update_status("CONNECTION ERROR", 'red')
                 break
 
-        if self.running and not self.is_hidden:
-            # Only show disconnect message if we're not just hidden
-            self.display_message("SYSTEM: Disconnected from server", "system")
-            self.update_status("DISCONNECTED", 'red')
+        # Disconnect handling moved to _on_disconnect callback
 
     def process_message(self, message):
         """Process incoming message from server."""
@@ -1036,6 +1041,11 @@ class ChatClient:
                 if self.is_anon and hasattr(self, 'inbox_btn'):
                     self.inbox_btn.pack_forget()
 
+            # Initialize MessageRouter for socket multiplexing
+            # This prevents race conditions between chat and operations threads
+            self.message_router = MessageRouter(self.socket)
+            self.message_router.on_disconnect(self._on_disconnect)
+
             # Start receive thread
             receive_thread = threading.Thread(target=self.receive_messages)
             receive_thread.daemon = True
@@ -1062,7 +1072,7 @@ class ChatClient:
 
         # Send request
         try:
-            self.socket.send(b'DM_INBOX:\n')
+            self.message_router.send('DM_INBOX:')
         except:
             return None
 
@@ -1087,7 +1097,7 @@ class ChatClient:
 
         # Send request
         try:
-            self.socket.send(f'DM_CONVERSATION:{other_user}\n'.encode('utf-8'))
+            self.message_router.send(f'DM_CONVERSATION:{other_user}')
         except:
             return None
 
@@ -1107,7 +1117,7 @@ class ChatClient:
             return
 
         try:
-            self.socket.send(f'DM_MARK_READ:{other_user}\n'.encode('utf-8'))
+            self.message_router.send(f'DM_MARK_READ:{other_user}')
         except:
             pass
 
@@ -1117,7 +1127,7 @@ class ChatClient:
             return False
 
         try:
-            self.socket.send(f'DM:{recipient}:{message}\n'.encode('utf-8'))
+            self.message_router.send(f'DM:{recipient}:{message}')
             return True
         except:
             return False

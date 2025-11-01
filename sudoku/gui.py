@@ -925,9 +925,10 @@ class SudokuGUI:
         self.ops_frame.pack(fill=tk.BOTH, expand=True)
 
         # Create operations client with callbacks
+        # Pass MessageRouter instead of raw socket to prevent race conditions
         self.ops_client = OperationsClient(
             self.ops_frame,
-            self.chat_client.socket,
+            self.chat_client.message_router,
             self.chat_client.username,
             exit_callback=self.exit_chat,
             chat_callback=self.return_to_chat

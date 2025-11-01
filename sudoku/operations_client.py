@@ -11,9 +11,10 @@ from typing import Optional, Callable
 class OperationsClient:
     """Operations wiki/forum client with retro cyberpunk theme."""
 
-    def __init__(self, root, chat_socket, username, exit_callback=None, chat_callback=None):
+    def __init__(self, root, message_router, username, exit_callback=None, chat_callback=None):
         self.root = root
-        self.socket = chat_socket  # Reuse chat socket
+        self.message_router = message_router  # Use MessageRouter instead of raw socket
+        self.socket = message_router.socket if message_router else None  # Keep for compatibility checks
         self.username = username
         self.exit_callback = exit_callback
         self.chat_callback = chat_callback  # Callback to return to chat
@@ -580,16 +581,10 @@ class OperationsClient:
                     import time
                     time.sleep(0.5)
 
-                self.socket.send(b'OP_LIST:\n')
+                self.message_router.send('OP_LIST:')
 
-                # Shorter timeout, rely on retry instead
-                self.socket.settimeout(5.0)
-
-                # Receive response with timeout
-                response = self.socket.recv(8192).decode('utf-8').strip()
-
-                # Reset to blocking
-                self.socket.settimeout(None)
+                # Receive response with timeout using MessageRouter
+                response = self.message_router.get_operation_response(timeout=5.0)
 
                 if response.startswith('OP_LIST:'):
                     data = response[8:]
@@ -619,7 +614,7 @@ class OperationsClient:
 
             except socket.timeout:
                 if attempt == 1:  # Last attempt timed out
-                    self.socket.settimeout(None)
+                    pass  # Timeout handled by MessageRouter
                     self.root.after(0, lambda: self._update_status("[ ERROR ]", self.ERROR_COLOR))
                     self.root.after(0, lambda: self._show_message("Server timeout - click refresh again", self.ERROR_COLOR))
                 # If first attempt, continue to retry
@@ -655,11 +650,9 @@ class OperationsClient:
             return
 
         try:
-            message = f'OP_CREATE:{op_name}:{op_pass}:{op_desc}\n'
-            self.socket.settimeout(5.0)
-            self.socket.send(message.encode('utf-8'))
-            response = self.socket.recv(1024).decode('utf-8').strip()
-            self.socket.settimeout(None)
+            message = f'OP_CREATE:{op_name}:{op_pass}:{op_desc}'
+            self.message_router.send(message)
+            response = self.message_router.get_operation_response(timeout=5.0)
 
             if response.startswith('OP_CREATE_RESULT:'):
                 parts = response[17:].split(':', 1)
@@ -675,12 +668,10 @@ class OperationsClient:
                 else:
                     self._show_message(f"✗ {msg}", self.ERROR_COLOR)
 
-        except socket.timeout:
+        except TimeoutError:
             self._show_message("Server timeout", self.ERROR_COLOR)
-            self.socket.settimeout(None)
         except Exception as e:
             self._show_message(f"Error: {e}", self.ERROR_COLOR)
-            self.socket.settimeout(None)
 
     def _access_operation(self):
         """Access selected operation with password."""
@@ -702,19 +693,17 @@ class OperationsClient:
 
         # Verify password
         try:
-            message = f'OP_VERIFY:{op["name"]}:{password}\n'
-            self.socket.settimeout(5.0)
-            self.socket.send(message.encode('utf-8'))
-            response = self.socket.recv(1024).decode('utf-8').strip()
+            message = f'OP_VERIFY:{op["name"]}:{password}'
+            self.message_router.send(message)
+            response = self.message_router.get_operation_response(timeout=5.0)
 
             if response.startswith('OP_VERIFY_RESULT:'):
                 valid = response[17:] == 'True'
 
                 if valid:
                     # Get operation info
-                    self.socket.send(f'OP_INFO:{op["name"]}\n'.encode('utf-8'))
-                    response = self.socket.recv(1024).decode('utf-8').strip()
-                    self.socket.settimeout(None)
+                    self.message_router.send(f'OP_INFO:{op["name"]}')
+                    response = self.message_router.get_operation_response(timeout=5.0)
 
                     op_info = None
                     if response.startswith('OP_INFO:'):
@@ -723,15 +712,13 @@ class OperationsClient:
 
                     self.show_operation_thread(op['name'], op_info)
                 else:
-                    self.socket.settimeout(None)
+                    pass  # Timeout handled by MessageRouter
                     self._show_message("✗ Invalid password", self.ERROR_COLOR)
 
-        except socket.timeout:
+        except TimeoutError:
             self._show_message("Server timeout", self.ERROR_COLOR)
-            self.socket.settimeout(None)
         except Exception as e:
             self._show_message(f"Error: {e}", self.ERROR_COLOR)
-            self.socket.settimeout(None)
 
     def _load_posts(self):
         """Load posts for current operation."""
@@ -739,10 +726,8 @@ class OperationsClient:
             return
 
         try:
-            self.socket.settimeout(5.0)
-            self.socket.send(f'OP_POSTS:{self.current_operation}\n'.encode('utf-8'))
-            response = self.socket.recv(8192).decode('utf-8').strip()
-            self.socket.settimeout(None)
+            self.message_router.send(f'OP_POSTS:{self.current_operation}')
+            response = self.message_router.get_operation_response(timeout=5.0)
 
             if response.startswith('OP_POSTS:'):
                 data = response[9:]
@@ -832,16 +817,14 @@ class OperationsClient:
 
             # Send post with optional file data
             if file_data:
-                message = f'OP_POST:{self.current_operation}:{comment}:{filename}:{file_data}\n'
+                message = f'OP_POST:{self.current_operation}:{comment}:{filename}:{file_data}'
                 print(f"CLIENT DEBUG: Sending with file - op={self.current_operation}, comment_len={len(comment)}, filename={filename}, file_data_len={len(file_data)}")
             else:
-                message = f'OP_POST:{self.current_operation}:{comment}::\n'
+                message = f'OP_POST:{self.current_operation}:{comment}::'
                 print(f"CLIENT DEBUG: Sending without file - op={self.current_operation}, comment_len={len(comment)}")
 
-            self.socket.settimeout(10.0)  # Longer timeout for file uploads
-            self.socket.sendall(message.encode('utf-8'))  # Use sendall to ensure all data is sent
-            response = self.socket.recv(1024).decode('utf-8').strip()
-            self.socket.settimeout(None)
+            self.message_router.send(message)
+            response = self.message_router.get_operation_response(timeout=10.0)  # Longer timeout for file uploads
 
             if response.startswith('OP_POST_RESULT:'):
                 parts = response[15:].split(':', 1)
@@ -856,12 +839,10 @@ class OperationsClient:
                 else:
                     self._show_message(f"✗ Failed to add post", self.ERROR_COLOR)
 
-        except socket.timeout:
+        except TimeoutError:
             self._show_message("Server timeout - post may be too large", self.ERROR_COLOR)
-            self.socket.settimeout(None)
         except Exception as e:
             self._show_message(f"Error: {e}", self.ERROR_COLOR)
-            self.socket.settimeout(None)
 
     def _download_file(self, post):
         """Download file from post."""
@@ -871,19 +852,10 @@ class OperationsClient:
             from tkinter import filedialog
 
             # Request file data from server
-            self.socket.settimeout(30.0)  # Longer timeout for large files
-            self.socket.sendall(f'OP_FILE:{post["id"]}\n'.encode('utf-8'))
+            self.message_router.send(f'OP_FILE:{post["id"]}')
 
-            # Read response in chunks until we get the complete message
-            buffer = b''
-            while b'\n' not in buffer:
-                chunk = self.socket.recv(65536)
-                if not chunk:
-                    break
-                buffer += chunk
-
-            response = buffer.decode('utf-8').strip()
-            self.socket.settimeout(None)
+            # Longer timeout for large files
+            response = self.message_router.get_operation_response(timeout=30.0)
 
             if response.startswith('OP_FILE:'):
                 file_data_b64 = response[8:]
@@ -906,12 +878,10 @@ class OperationsClient:
             else:
                 self._show_message("✗ Failed to download file", self.ERROR_COLOR)
 
-        except socket.timeout:
+        except TimeoutError:
             self._show_message("Server timeout downloading file", self.ERROR_COLOR)
-            self.socket.settimeout(None)
         except Exception as e:
             self._show_message(f"✗ Error: {e}", self.ERROR_COLOR)
-            self.socket.settimeout(None)
 
     def _ask_password(self, op_name):
         """Show password dialog."""
@@ -979,23 +949,8 @@ class OperationsClient:
         return result[0]
 
     def _clear_socket_buffer(self):
-        """Clear any pending data in socket buffer before making a new request."""
-        try:
-            # Set socket to non-blocking mode temporarily
-            self.socket.setblocking(False)
-            # Try to read any pending data
-            while True:
-                try:
-                    data = self.socket.recv(4096)
-                    if not data:
-                        break
-                except:
-                    break
-        except:
-            pass
-        finally:
-            # Restore blocking mode
-            self.socket.setblocking(True)
+        """No-op: MessageRouter handles all buffering and message routing."""
+        pass  # MessageRouter eliminates the need for manual buffer clearing
 
     def _update_status(self, message, color):
         """Update the status indicator label."""
