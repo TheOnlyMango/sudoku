@@ -726,9 +726,22 @@ class ChatClient:
         """
         # Update conversation list
         self.conversations = conversations
+
+        # If viewing conversation with this sender, mark as read immediately
+        if self.current_conversation == sender:
+            # Mark as read on server
+            self.mark_conversation_read(sender)
+
+            # Update local conversation list to clear unread indicator immediately
+            for conv in self.conversations:
+                if conv['user'] == sender:
+                    conv['unread'] = 0
+                    break
+
+        # Update the GUI with conversation list (with cleared unread if applicable)
         self.update_conversation_list()
 
-        # If viewing conversation with this sender, refresh it
+        # If viewing conversation with this sender, refresh the message thread
         if self.current_conversation == sender:
             # Run in background thread to avoid blocking
             refresh_thread = threading.Thread(target=self._refresh_conversation_async, args=(sender,))
