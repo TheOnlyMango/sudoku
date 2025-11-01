@@ -11,13 +11,14 @@ from typing import Optional, Callable
 class OperationsClient:
     """Operations wiki/forum client with retro cyberpunk theme."""
 
-    def __init__(self, root, message_router, username, exit_callback=None, chat_callback=None):
+    def __init__(self, root, message_router, username, exit_callback=None, chat_callback=None, inbox_callback=None):
         self.root = root
         self.message_router = message_router  # Use MessageRouter instead of raw socket
         self.socket = message_router.socket if message_router else None  # Keep for compatibility checks
         self.username = username
         self.exit_callback = exit_callback
         self.chat_callback = chat_callback  # Callback to return to chat
+        self.inbox_callback = inbox_callback  # Callback to return to inbox
         self.current_view = "list"  # list, thread
         self.current_operation = None
         self.operations_data = {}  # Initialize operations data dict
@@ -141,21 +142,48 @@ class OperationsClient:
             chat_btn.bind("<Enter>", on_chat_enter)
             chat_btn.bind("<Leave>", on_chat_leave)
 
-        # INBOX button - on RIGHT side (disabled in operations, but shown for consistency)
-        inbox_btn = tk.Button(
-            header_frame,
-            text="INBOX",
-            command=None,  # Disabled in operations
-            font=("Courier", 8, "bold"),
-            bg="#6272a4",  # Muted/disabled color
-            fg="#44475a",
-            width=10,
-            height=1,
-            relief=tk.RAISED,
-            bd=4,
-            state=tk.DISABLED
-        )
-        inbox_btn.pack(side=tk.RIGHT, padx=5)
+        # INBOX button - on RIGHT side
+        if self.inbox_callback:
+            inbox_btn = tk.Button(
+                header_frame,
+                text="INBOX",
+                command=self.inbox_callback,
+                font=("Courier", 8, "bold"),
+                bg="#00b4d8",  # Cyan blue like chat button
+                fg="#00ff41",  # Matrix green
+                activebackground="#00ff41",
+                activeforeground="#00b4d8",
+                width=10,
+                height=1,
+                relief=tk.RAISED,
+                bd=4,
+                cursor="hand2"
+            )
+            inbox_btn.pack(side=tk.RIGHT, padx=5)
+
+            # Add hover effect
+            def on_inbox_enter(e):
+                inbox_btn.config(bg="#00ff41", fg="#00b4d8", relief=tk.RAISED)
+            def on_inbox_leave(e):
+                inbox_btn.config(bg="#00b4d8", fg="#00ff41", relief=tk.RAISED)
+            inbox_btn.bind("<Enter>", on_inbox_enter)
+            inbox_btn.bind("<Leave>", on_inbox_leave)
+        else:
+            # Show disabled button if no callback
+            inbox_btn = tk.Button(
+                header_frame,
+                text="INBOX",
+                command=None,
+                font=("Courier", 8, "bold"),
+                bg="#6272a4",  # Muted/disabled color
+                fg="#44475a",
+                width=10,
+                height=1,
+                relief=tk.RAISED,
+                bd=4,
+                state=tk.DISABLED
+            )
+            inbox_btn.pack(side=tk.RIGHT, padx=5)
 
         # OPERATIONS button (current - highlighted) - on RIGHT side
         ops_btn = tk.Button(
@@ -377,21 +405,48 @@ class OperationsClient:
             chat_btn.bind("<Enter>", on_chat_enter)
             chat_btn.bind("<Leave>", on_chat_leave)
 
-        # INBOX button (disabled) on RIGHT
-        inbox_btn = tk.Button(
-            header_frame,
-            text="INBOX",
-            command=None,
-            font=("Courier", 8, "bold"),
-            bg="#6272a4",
-            fg="#44475a",
-            width=10,
-            height=1,
-            relief=tk.RAISED,
-            bd=4,
-            state=tk.DISABLED
-        )
-        inbox_btn.pack(side=tk.RIGHT, padx=5)
+        # INBOX button on RIGHT
+        if self.inbox_callback:
+            inbox_btn = tk.Button(
+                header_frame,
+                text="INBOX",
+                command=self.inbox_callback,
+                font=("Courier", 8, "bold"),
+                bg="#00b4d8",  # Cyan blue like chat button
+                fg="#00ff41",  # Matrix green
+                activebackground="#00ff41",
+                activeforeground="#00b4d8",
+                width=10,
+                height=1,
+                relief=tk.RAISED,
+                bd=4,
+                cursor="hand2"
+            )
+            inbox_btn.pack(side=tk.RIGHT, padx=5)
+
+            # Add hover effect
+            def on_inbox_enter(e):
+                inbox_btn.config(bg="#00ff41", fg="#00b4d8", relief=tk.RAISED)
+            def on_inbox_leave(e):
+                inbox_btn.config(bg="#00b4d8", fg="#00ff41", relief=tk.RAISED)
+            inbox_btn.bind("<Enter>", on_inbox_enter)
+            inbox_btn.bind("<Leave>", on_inbox_leave)
+        else:
+            # Show disabled button if no callback
+            inbox_btn = tk.Button(
+                header_frame,
+                text="INBOX",
+                command=None,
+                font=("Courier", 8, "bold"),
+                bg="#6272a4",
+                fg="#44475a",
+                width=10,
+                height=1,
+                relief=tk.RAISED,
+                bd=4,
+                state=tk.DISABLED
+            )
+            inbox_btn.pack(side=tk.RIGHT, padx=5)
 
         # OPERATIONS button on RIGHT (can click to go back to list)
         ops_btn = tk.Button(
@@ -890,6 +945,22 @@ class OperationsClient:
         dialog.configure(bg=self.BG_COLOR)
         dialog.geometry("400x200")  # Increased height to show button
         dialog.resizable(False, False)
+
+        # Center dialog relative to parent window
+        dialog.update_idletasks()  # Ensure geometry is calculated
+        parent_x = self.root.winfo_x()
+        parent_y = self.root.winfo_y()
+        parent_width = self.root.winfo_width()
+        parent_height = self.root.winfo_height()
+
+        dialog_width = 400
+        dialog_height = 200
+
+        # Calculate center position
+        x = parent_x + (parent_width - dialog_width) // 2
+        y = parent_y + (parent_height - dialog_height) // 2
+
+        dialog.geometry(f"{dialog_width}x{dialog_height}+{x}+{y}")
         dialog.grab_set()
 
         # Retro-style header

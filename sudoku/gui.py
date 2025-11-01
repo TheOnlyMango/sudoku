@@ -931,7 +931,8 @@ class SudokuGUI:
             self.chat_client.message_router,
             self.chat_client.username,
             exit_callback=self.exit_chat,
-            chat_callback=self.return_to_chat
+            chat_callback=self.return_to_chat,
+            inbox_callback=self.return_to_inbox
         )
         self.ops_client.create_ui()
 
@@ -952,6 +953,28 @@ class SudokuGUI:
         # Show chat frame again
         if hasattr(self, 'chat_frame'):
             self.chat_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Restore chat title
+        self.root.title("░▒▓█ SECURE CHAT █▓▒░")
+
+    def return_to_inbox(self):
+        """Return from operations to inbox."""
+        # Hide operations frame
+        if hasattr(self, 'ops_frame'):
+            self.ops_frame.pack_forget()
+            self.ops_frame.destroy()
+
+        # Mark chat as visible again
+        if hasattr(self, 'chat_client'):
+            self.chat_client.show()
+
+        # Show chat frame again
+        if hasattr(self, 'chat_frame'):
+            self.chat_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Switch to inbox view
+        if hasattr(self, 'chat_client'):
+            self.chat_client.switch_view('inbox')
 
         # Restore chat title
         self.root.title("░▒▓█ SECURE CHAT █▓▒░")
