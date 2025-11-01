@@ -737,7 +737,8 @@ class OperationsClient:
             fg=self.ACCENT_COLOR,
             insertbackground=self.ACCENT_COLOR,
             state=tk.DISABLED,
-            wrap=tk.CHAR,  # Character-level wrapping to prevent box borders from breaking
+            wrap=tk.NONE,  # No wrapping - let content determine width
+            width=105,  # Set width to accommodate 100-char borders plus margin
             relief=tk.FLAT,
             highlightthickness=0
         )
