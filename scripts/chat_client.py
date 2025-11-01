@@ -44,7 +44,7 @@ class ChatApplication:
         # Create auth UI
         self.auth_ui = AuthUI(
             self.main_container,
-            on_success=self.on_auth_success
+            on_auth_success=self.on_auth_success
         )
         self.auth_ui.show_auth_screen()
         self.current_view = 'auth'
