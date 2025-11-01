@@ -1152,14 +1152,16 @@ class OperationsClient:
                                                         lambda e: self.posts_display.config(cursor=""))
 
                         # Full-width separator
-                        self.posts_display.insert(tk.END, "─" * BOX_WIDTH + "\n", "time")
+                        self.posts_display.insert(tk.END, "\n" + "─" * BOX_WIDTH + "\n", "time")
 
                     else:  # IIR
                         # Display IIR with full-width bordered box
                         report_title = f"INTELLIGENCE REPORT {item['report_number']}"
-                        # Calculate padding for centered title
-                        padding = (BOX_WIDTH - len(report_title) - 2) // 2  # -2 for ╔╗
-                        top_border = f"╔{'═' * padding} {report_title} {'═' * (BOX_WIDTH - padding - len(report_title) - 3)}╗\n"
+                        # Calculate padding for centered title (accounting for ╔, ╗, and 2 spaces around title)
+                        total_padding = BOX_WIDTH - len(report_title) - 2 - 2  # -2 for corners, -2 for spaces
+                        left_padding = total_padding // 2
+                        right_padding = total_padding - left_padding  # Handle odd numbers correctly
+                        top_border = f"╔{'═' * left_padding} {report_title} {'═' * right_padding}╗\n"
                         self.posts_display.insert(tk.END, top_border, "iir_header")
 
                         # Convert timestamps to DTG format
@@ -1241,22 +1243,26 @@ class OperationsClient:
                         self.posts_display.insert(tk.END, f"{' ' * padding_needed}", "iir_value")
                         self.posts_display.insert(tk.END, "║\n", "iir_header")
 
-                        # Information text (all caps, word-wrapped with borders)
+                        # Information text (all caps, word-wrapped with borders and proper gaps)
                         info_caps = item['information'].upper()
                         words = info_caps.split()
-                        current_line = "║ "
+                        current_line = "║  "  # Left border + 2-space margin
+
                         for word in words:
-                            if len(current_line) + len(word) + 1 <= BOX_WIDTH - 2:  # -2 for closing ║
-                                current_line += word + " "
+                            # Check if word fits on current line (with space separator if not first word)
+                            test_line = current_line + (" " if len(current_line) > 3 else "") + word
+                            if len(test_line) <= BOX_WIDTH - 3:  # -3 for right margin + ║
+                                current_line = test_line
                             else:
-                                # Pad and close current line
-                                padding_needed = BOX_WIDTH - len(current_line) - 1
-                                self.posts_display.insert(tk.END, current_line + " " * padding_needed + "║\n", "iir_value")
-                                current_line = "║ " + word + " "
+                                # Finish current line with padding and right border
+                                padding_needed = BOX_WIDTH - len(current_line) - 2  # -2 for margin + ║
+                                self.posts_display.insert(tk.END, current_line + " " * padding_needed + " ║\n", "iir_value")
+                                current_line = "║  " + word
+
                         # Close final line
-                        if len(current_line) > 2:
-                            padding_needed = BOX_WIDTH - len(current_line) - 1
-                            self.posts_display.insert(tk.END, current_line + " " * padding_needed + "║\n", "iir_value")
+                        if len(current_line) > 3:
+                            padding_needed = BOX_WIDTH - len(current_line) - 2
+                            self.posts_display.insert(tk.END, current_line + " " * padding_needed + " ║\n", "iir_value")
 
                         # Filename if present with download link
                         if item.get('filename'):
@@ -1282,7 +1288,7 @@ class OperationsClient:
                         # Bottom border (full width)
                         self.posts_display.insert(tk.END, f"╚{'═' * (BOX_WIDTH - 2)}╝\n", "iir_header")
                         # Full-width separator
-                        self.posts_display.insert(tk.END, "─" * BOX_WIDTH + "\n", "time")
+                        self.posts_display.insert(tk.END, "─" * BOX_WIDTH + "\n\n", "time")
 
             self.posts_display.config(state=tk.DISABLED)
 
