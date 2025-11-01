@@ -25,7 +25,7 @@ class MessageRouter:
     """Routes messages from single socket to multiple handlers."""
 
     # Message prefixes for routing
-    OPERATION_PREFIXES = ['OP_', 'OPERATION_']
+    OPERATION_PREFIXES = ['OP_', 'OPERATION_', 'IIR_']
     # DM response messages (from server) - these go to chat queue for process_message()
     DM_RESPONSE_PREFIXES = ['DM_INBOX:', 'DM_CONVERSATION:', 'DM_MARKED_READ:']
     # OFFLINE goes to chat queue too (handled by process_message)
