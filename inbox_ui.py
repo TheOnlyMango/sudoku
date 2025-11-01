@@ -496,49 +496,59 @@ class InboxUI:
         cancel_btn.pack(side=tk.RIGHT, padx=5)
 
     def start_auto_refresh(self):
-        """Start auto-refreshing inbox and conversation every 2 seconds."""
+        """Start auto-refreshing inbox and conversation every second for live updates."""
         if self.inbox_window and self.inbox_window.winfo_exists():
             # Refresh inbox list
             self.load_inbox()
-            
+
             # If viewing a conversation, refresh it too
             if self.current_conversation:
                 self.refresh_current_conversation()
-            
-            # Schedule next refresh
-            self.auto_refresh_id = self.root.after(2000, self.start_auto_refresh)
+
+            # Schedule next refresh (1 second for faster updates)
+            self.auto_refresh_id = self.root.after(1000, self.start_auto_refresh)
 
     def refresh_current_conversation(self):
-        """Refresh the currently open conversation without losing scroll position."""
+        """Refresh the currently open conversation, scroll to bottom if new messages."""
         if not self.current_conversation:
             return
-        
+
+        # Count current messages before refresh
+        current_content = None
+        try:
+            current_content = self.msg_display.get('1.0', tk.END)
+            current_lines = len(current_content.strip().split('\n'))
+        except:
+            current_lines = 0
+
         # Save scroll position
         try:
             scroll_pos = self.msg_display.yview()
+            at_bottom = scroll_pos[1] >= 0.99  # Check if already at bottom
         except:
             scroll_pos = None
-        
+            at_bottom = True
+
         # Reload conversation
         messages = self.chat_client.request_conversation(self.current_conversation)
-        
+
         if messages is not None:
             # Update display
             self.msg_display.config(state=tk.NORMAL)
             self.msg_display.delete('1.0', tk.END)
-            
+
             for msg in messages:
                 sender = msg['sender']
                 message = msg['message']
                 timestamp = msg['timestamp']
-                
+
                 # Format timestamp
                 try:
                     dt = datetime.fromisoformat(timestamp)
                     time_str = dt.strftime('%H:%M')
                 except:
                     time_str = timestamp
-                
+
                 # Display message
                 if sender == self.chat_client.username:
                     # Our message (right-aligned)
@@ -550,14 +560,19 @@ class InboxUI:
                     self.msg_display.insert(tk.END, f"[{time_str}] ", "time")
                     self.msg_display.insert(tk.END, f"{sender}: ", "them")
                     self.msg_display.insert(tk.END, f"{message}\n", "text")
-            
+
             self.msg_display.config(state=tk.DISABLED)
-            
-            # Restore scroll position or scroll to bottom
-            if scroll_pos:
-                self.msg_display.yview_moveto(scroll_pos[0])
-            else:
+
+            # Check if new messages arrived
+            new_lines = len(messages)
+            got_new_messages = new_lines > current_lines
+
+            # Scroll to bottom if: was already at bottom OR got new messages
+            if at_bottom or got_new_messages:
                 self.msg_display.see(tk.END)
+            elif scroll_pos:
+                # Restore scroll position if not at bottom and no new messages
+                self.msg_display.yview_moveto(scroll_pos[0])
 
     def close_inbox(self):
         """Close inbox and cancel auto-refresh."""
