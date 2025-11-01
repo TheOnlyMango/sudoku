@@ -346,8 +346,14 @@ class InboxUI:
             if dt:
                 if last_timestamp is None or (dt - last_timestamp).total_seconds() > 1800:  # 1800s = 30 min
                     time_str = dt.strftime("%H:%M")
-                    # Centered timestamp header
-                    self.message_display.insert(tk.END, f"{time_str}\n", "time_center")
+                    # Right-aligned timestamp header (like user@shnet format)
+                    timestamp_str = f"[{time_str}]"
+                    target_width = 70  # Adjusted for standalone inbox width
+                    padding_needed = target_width - len(timestamp_str)
+                    if padding_needed < 0:
+                        padding_needed = 0
+                    padding = " " * padding_needed
+                    self.message_display.insert(tk.END, f"{padding}{timestamp_str}\n", "time")
                     last_timestamp = dt
 
             # Determine if sent or received
@@ -564,8 +570,14 @@ class InboxUI:
                 if dt:
                     if last_timestamp is None or (dt - last_timestamp).total_seconds() > 1800:  # 1800s = 30 min
                         time_str = dt.strftime('%H:%M')
-                        # Centered timestamp header
-                        self.message_display.insert(tk.END, f"{time_str}\n", "time_center")
+                        # Right-aligned timestamp header (like user@shnet format)
+                        timestamp_str = f"[{time_str}]"
+                        target_width = 70  # Adjusted for standalone inbox width
+                        padding_needed = target_width - len(timestamp_str)
+                        if padding_needed < 0:
+                            padding_needed = 0
+                        padding = " " * padding_needed
+                        self.message_display.insert(tk.END, f"{padding}{timestamp_str}\n", "time")
                         last_timestamp = dt
 
                 # Display message using iPhone-style format (same as display_conversation)
