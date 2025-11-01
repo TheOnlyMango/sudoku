@@ -644,16 +644,17 @@ class ChatClient:
 
             # Determine if sent or received
             if sender == self.username:
+                # Your messages - aligned right, no username
                 tag = "sent"
-                prefix = "→"
+                # Right-align by adding padding before timestamp
+                padding = " " * 50  # Adjust padding for right alignment
+                self.inbox_msg_display.insert(tk.END, f"{padding}[{time_str}] ", "time")
+                self.inbox_msg_display.insert(tk.END, f"{message_text}\n", tag)
             else:
+                # Their messages - aligned left, no username
                 tag = "received"
-                prefix = "←"
-
-            # Display message
-            self.inbox_msg_display.insert(tk.END, f"[{time_str}] ", "time")
-            self.inbox_msg_display.insert(tk.END, f"{prefix} @{sender}: ", tag)
-            self.inbox_msg_display.insert(tk.END, f"{message_text}\n", "text")
+                self.inbox_msg_display.insert(tk.END, f"[{time_str}] ", "time")
+                self.inbox_msg_display.insert(tk.END, f"{message_text}\n", tag)
 
         self.inbox_msg_display.config(state=tk.DISABLED)
         self.inbox_msg_display.see(tk.END)
