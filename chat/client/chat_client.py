@@ -537,6 +537,10 @@ class ChatClient:
 
     def switch_view(self, view_name):
         """Switch between chat and inbox views."""
+        # Unregister inbox callback when leaving inbox view
+        if self.current_view == 'inbox' and view_name != 'inbox':
+            self.unregister_dm_callback(self._on_inbox_dm_received)
+
         self.current_view = view_name
 
         # Hide both views
@@ -558,6 +562,8 @@ class ChatClient:
             self.chat_btn.config(relief=tk.RAISED, bg="#00b4d8", fg="#00ff41")
             # Load inbox when switching to it
             self.load_inbox()
+            # Register callback for real-time updates
+            self.register_dm_callback(self._on_inbox_dm_received)
 
     def load_inbox(self):
         """Load inbox conversations from server."""
@@ -683,6 +689,29 @@ class ChatClient:
         from chat.client.inbox_ui import InboxUI
         inbox = InboxUI(self.root, self)
         inbox.new_message()
+
+    def _on_inbox_dm_received(self, sender, message):
+        """Callback when DM arrives while inbox view is active.
+
+        Args:
+            sender: Username who sent the DM (for incoming) or recipient (for outgoing via DM_SAVED)
+            message: Message content
+        """
+        # Use thread-safe GUI update via root.after
+        self.root.after(0, lambda: self._handle_inbox_dm_update(sender))
+
+    def _handle_inbox_dm_update(self, sender):
+        """Handle inbox DM update in GUI thread.
+
+        Args:
+            sender: Username who sent the DM or recipient for outgoing
+        """
+        # Reload inbox to update conversation list (unread counts, preview, etc.)
+        self.load_inbox()
+
+        # If viewing conversation with this sender, refresh it immediately
+        if self.current_conversation == sender:
+            self.refresh_current_conversation()
 
     def register_dm_callback(self, callback, sender_filter=None):
         """Register callback to be called when DM arrives.
