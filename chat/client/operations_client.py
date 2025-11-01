@@ -729,7 +729,8 @@ class OperationsClient:
             fg=self.TEXT_COLOR
         ).pack(pady=5)
 
-        self.posts_display = scrolledtext.ScrolledText(
+        # Use regular Text widget without scrollbar for cleaner look
+        self.posts_display = tk.Text(
             self.posts_frame,
             font=("Courier", 9),
             bg=self.BG_COLOR,
@@ -889,6 +890,44 @@ class OperationsClient:
                 # If parsing fails, show dashes
                 for label in ticker_labels:
                     label.config(text='─')
+
+    def _format_timestamp_to_dtg(self, timestamp_str):
+        """Convert database timestamp to military DTG format (DDHHMM(Z)MONYY).
+
+        Args:
+            timestamp_str: Timestamp string from database (e.g., "2025-01-15 14:30:45")
+
+        Returns:
+            DTG format string (e.g., "151430ZJAN25") or original if parsing fails
+        """
+        try:
+            from datetime import datetime
+
+            # Parse timestamp (handle various formats)
+            if isinstance(timestamp_str, str):
+                # Try ISO format first
+                try:
+                    dt = datetime.fromisoformat(timestamp_str)
+                except:
+                    # Try other common formats
+                    for fmt in ["%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M:%S.%f"]:
+                        try:
+                            dt = datetime.strptime(timestamp_str, fmt)
+                            break
+                        except:
+                            continue
+                    else:
+                        return timestamp_str  # Return original if can't parse
+            else:
+                return str(timestamp_str)
+
+            # Format as DDHHMM(Z)MONYY (drop seconds)
+            month_abbr = dt.strftime("%b").upper()
+            dtg = f"{dt.day:02d}{dt.hour:02d}{dt.minute:02d}Z{month_abbr}{dt.strftime('%y')}"
+            return dtg
+
+        except Exception:
+            return timestamp_str  # Return original if any error
 
     def _load_operations(self):
         """Load operations list from server (runs in background thread)."""
@@ -1086,11 +1125,15 @@ class OperationsClient:
             if not all_items:
                 self.posts_display.insert(tk.END, "No posts or IIRs yet. Be the first to contribute!\n", "text")
             else:
+                # Define display width for borders (characters)
+                BOX_WIDTH = 100
+
                 for item in all_items:
                     if item['type'] == 'post':
-                        # Display post
+                        # Display post with DTG format timestamp
+                        dtg_timestamp = self._format_timestamp_to_dtg(item['created_at'])
                         self.posts_display.insert(tk.END, f">> {item['username']}", "user")
-                        self.posts_display.insert(tk.END, f" [{item['created_at']}]\n", "time")
+                        self.posts_display.insert(tk.END, f" [{dtg_timestamp}]\n", "time")
                         self.posts_display.insert(tk.END, f"{item['comment']}\n", "text")
                         # Filename if present with download link
                         if item.get('filename'):
@@ -1108,44 +1151,124 @@ class OperationsClient:
                             self.posts_display.tag_bind(file_tag, "<Leave>",
                                                         lambda e: self.posts_display.config(cursor=""))
 
-                        self.posts_display.insert(tk.END, "─" * 70 + "\n", "time")
+                        # Full-width separator
+                        self.posts_display.insert(tk.END, "─" * BOX_WIDTH + "\n", "time")
 
                     else:  # IIR
-                        # Display IIR
-                        self.posts_display.insert(tk.END, f"╔═══ INTELLIGENCE REPORT {item['report_number']} ═══╗\n", "iir_header")
-                        self.posts_display.insert(tk.END, f"║ ", "iir_header")
-                        self.posts_display.insert(tk.END, "SUBMITTER: ", "iir_label")
-                        self.posts_display.insert(tk.END, f"{item['submitter']}\n", "iir_value")
-                        self.posts_display.insert(tk.END, f"║ ", "iir_header")
-                        self.posts_display.insert(tk.END, "PRIORITY: ", "iir_label")
-                        self.posts_display.insert(tk.END, f"{item['priority'].upper()}\n", "iir_value")
-                        self.posts_display.insert(tk.END, f"║ ", "iir_header")
-                        self.posts_display.insert(tk.END, "DTG SUBMITTED: ", "iir_label")
-                        self.posts_display.insert(tk.END, f"{item['dtg_submitted']}\n", "iir_value")
-                        self.posts_display.insert(tk.END, f"║ ", "iir_header")
-                        self.posts_display.insert(tk.END, "DTG INFO DATE: ", "iir_label")
-                        self.posts_display.insert(tk.END, f"{item['dtg_info_date']}\n", "iir_value")
-                        self.posts_display.insert(tk.END, f"║ ", "iir_header")
-                        self.posts_display.insert(tk.END, "DTG CUTOFF: ", "iir_label")
-                        self.posts_display.insert(tk.END, f"{item['dtg_cutoff']}\n", "iir_value")
-                        self.posts_display.insert(tk.END, f"║ ", "iir_header")
-                        self.posts_display.insert(tk.END, "TARGET: ", "iir_label")
-                        self.posts_display.insert(tk.END, f"{item['target']}\n", "iir_value")
-                        self.posts_display.insert(tk.END, f"║ ", "iir_header")
-                        self.posts_display.insert(tk.END, "TITLE: ", "iir_label")
-                        self.posts_display.insert(tk.END, f"{item['title']}\n", "iir_value")
-                        self.posts_display.insert(tk.END, f"║ ", "iir_header")
-                        self.posts_display.insert(tk.END, "INFORMATION:\n", "iir_label")
-                        self.posts_display.insert(tk.END, f"║ ", "iir_header")
-                        self.posts_display.insert(tk.END, f"{item['information']}\n", "iir_value")
+                        # Display IIR with full-width bordered box
+                        report_title = f"INTELLIGENCE REPORT {item['report_number']}"
+                        # Calculate padding for centered title
+                        padding = (BOX_WIDTH - len(report_title) - 2) // 2  # -2 for ╔╗
+                        top_border = f"╔{'═' * padding} {report_title} {'═' * (BOX_WIDTH - padding - len(report_title) - 3)}╗\n"
+                        self.posts_display.insert(tk.END, top_border, "iir_header")
+
+                        # Convert timestamps to DTG format
+                        dtg_submitted = self._format_timestamp_to_dtg(item['dtg_submitted'])
+                        dtg_info = item['dtg_info_date'].upper() if item.get('dtg_info_date') else ''
+                        dtg_cutoff_val = item['dtg_cutoff'].upper() if item.get('dtg_cutoff') else ''
+
+                        # Helper function to create padded line with right border
+                        def iir_line(label, value):
+                            content = f"{label} {value}"
+                            padding_needed = BOX_WIDTH - len(content) - 3  # -3 for ║ on both sides + space
+                            return f"║ {content}{' ' * padding_needed}║\n"
+
+                        # SUBMITTED (moved to top, DTG format)
+                        self.posts_display.insert(tk.END, "║ ", "iir_header")
+                        self.posts_display.insert(tk.END, "SUBMITTED:", "iir_label")
+                        content_len = len(f"SUBMITTED: {dtg_submitted}")
+                        padding_needed = BOX_WIDTH - content_len - 3
+                        self.posts_display.insert(tk.END, f" {dtg_submitted}{' ' * padding_needed}", "iir_value")
+                        self.posts_display.insert(tk.END, "║\n", "iir_header")
+
+                        # SUBMITTER (all caps)
+                        self.posts_display.insert(tk.END, "║ ", "iir_header")
+                        self.posts_display.insert(tk.END, "SUBMITTER:", "iir_label")
+                        submitter_caps = item['submitter'].upper()
+                        content_len = len(f"SUBMITTER: {submitter_caps}")
+                        padding_needed = BOX_WIDTH - content_len - 3
+                        self.posts_display.insert(tk.END, f" {submitter_caps}{' ' * padding_needed}", "iir_value")
+                        self.posts_display.insert(tk.END, "║\n", "iir_header")
+
+                        # PRIORITY (all caps)
+                        self.posts_display.insert(tk.END, "║ ", "iir_header")
+                        self.posts_display.insert(tk.END, "PRIORITY:", "iir_label")
+                        priority_caps = item['priority'].upper()
+                        content_len = len(f"PRIORITY: {priority_caps}")
+                        padding_needed = BOX_WIDTH - content_len - 3
+                        self.posts_display.insert(tk.END, f" {priority_caps}{' ' * padding_needed}", "iir_value")
+                        self.posts_display.insert(tk.END, "║\n", "iir_header")
+
+                        # DATE OF INFO (renamed from DTG INFO DATE, all caps)
+                        self.posts_display.insert(tk.END, "║ ", "iir_header")
+                        self.posts_display.insert(tk.END, "DATE OF INFO:", "iir_label")
+                        content_len = len(f"DATE OF INFO: {dtg_info}")
+                        padding_needed = BOX_WIDTH - content_len - 3
+                        self.posts_display.insert(tk.END, f" {dtg_info}{' ' * padding_needed}", "iir_value")
+                        self.posts_display.insert(tk.END, "║\n", "iir_header")
+
+                        # CUTOFF (renamed from DTG CUTOFF, all caps)
+                        self.posts_display.insert(tk.END, "║ ", "iir_header")
+                        self.posts_display.insert(tk.END, "CUTOFF:", "iir_label")
+                        content_len = len(f"CUTOFF: {dtg_cutoff_val}")
+                        padding_needed = BOX_WIDTH - content_len - 3
+                        self.posts_display.insert(tk.END, f" {dtg_cutoff_val}{' ' * padding_needed}", "iir_value")
+                        self.posts_display.insert(tk.END, "║\n", "iir_header")
+
+                        # TARGET (all caps)
+                        self.posts_display.insert(tk.END, "║ ", "iir_header")
+                        self.posts_display.insert(tk.END, "TARGET:", "iir_label")
+                        target_caps = item['target'].upper()
+                        content_len = len(f"TARGET: {target_caps}")
+                        padding_needed = BOX_WIDTH - content_len - 3
+                        self.posts_display.insert(tk.END, f" {target_caps}{' ' * padding_needed}", "iir_value")
+                        self.posts_display.insert(tk.END, "║\n", "iir_header")
+
+                        # TITLE (all caps)
+                        self.posts_display.insert(tk.END, "║ ", "iir_header")
+                        self.posts_display.insert(tk.END, "TITLE:", "iir_label")
+                        title_caps = item['title'].upper()
+                        content_len = len(f"TITLE: {title_caps}")
+                        padding_needed = BOX_WIDTH - content_len - 3
+                        self.posts_display.insert(tk.END, f" {title_caps}{' ' * padding_needed}", "iir_value")
+                        self.posts_display.insert(tk.END, "║\n", "iir_header")
+
+                        # INFORMATION (all caps, multi-line with right border)
+                        self.posts_display.insert(tk.END, "║ ", "iir_header")
+                        self.posts_display.insert(tk.END, "INFORMATION:", "iir_label")
+                        content_len = len("INFORMATION:")
+                        padding_needed = BOX_WIDTH - content_len - 3
+                        self.posts_display.insert(tk.END, f"{' ' * padding_needed}", "iir_value")
+                        self.posts_display.insert(tk.END, "║\n", "iir_header")
+
+                        # Information text (all caps, word-wrapped with borders)
+                        info_caps = item['information'].upper()
+                        words = info_caps.split()
+                        current_line = "║ "
+                        for word in words:
+                            if len(current_line) + len(word) + 1 <= BOX_WIDTH - 2:  # -2 for closing ║
+                                current_line += word + " "
+                            else:
+                                # Pad and close current line
+                                padding_needed = BOX_WIDTH - len(current_line) - 1
+                                self.posts_display.insert(tk.END, current_line + " " * padding_needed + "║\n", "iir_value")
+                                current_line = "║ " + word + " "
+                        # Close final line
+                        if len(current_line) > 2:
+                            padding_needed = BOX_WIDTH - len(current_line) - 1
+                            self.posts_display.insert(tk.END, current_line + " " * padding_needed + "║\n", "iir_value")
 
                         # Filename if present with download link
                         if item.get('filename'):
                             file_tag = f"iir_file_{item['id']}"
-                            self.posts_display.insert(tk.END, f"║ ", "iir_header")
-                            self.posts_display.insert(tk.END, f"📎 ATTACHMENT: ", "iir_label")
+                            self.posts_display.insert(tk.END, "║ ", "iir_header")
+                            self.posts_display.insert(tk.END, "📎 ATTACHMENT: ", "iir_label")
                             self.posts_display.insert(tk.END, f"{item['filename']}", file_tag)
-                            self.posts_display.insert(tk.END, f" [click to download]\n", "iir_label")
+                            self.posts_display.insert(tk.END, " [click to download]", "iir_label")
+                            content_len = len(f"📎 ATTACHMENT: {item['filename']} [click to download]")
+                            padding_needed = BOX_WIDTH - content_len - 3
+                            self.posts_display.insert(tk.END, " " * padding_needed, "iir_label")
+                            self.posts_display.insert(tk.END, "║\n", "iir_header")
 
                             # Make filename clickable
                             self.posts_display.tag_config(file_tag, foreground=self.SECONDARY_COLOR, underline=1)
@@ -1156,8 +1279,10 @@ class OperationsClient:
                             self.posts_display.tag_bind(file_tag, "<Leave>",
                                                         lambda e: self.posts_display.config(cursor=""))
 
-                        self.posts_display.insert(tk.END, f"╚═══════════════════════════════════════════╝\n", "iir_header")
-                        self.posts_display.insert(tk.END, "─" * 70 + "\n", "time")
+                        # Bottom border (full width)
+                        self.posts_display.insert(tk.END, f"╚{'═' * (BOX_WIDTH - 2)}╝\n", "iir_header")
+                        # Full-width separator
+                        self.posts_display.insert(tk.END, "─" * BOX_WIDTH + "\n", "time")
 
             self.posts_display.config(state=tk.DISABLED)
 
