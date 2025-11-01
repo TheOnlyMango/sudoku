@@ -22,6 +22,7 @@ class InboxUI:
         self.inbox_window = None
         self.conversations = []
         self.current_conversation = None
+        self.auto_refresh_id = None  # Store timer ID for auto-refresh
 
         # Dracula colors with 90s hacker twist
         self.BG_COLOR = "#282a36"
@@ -229,7 +230,7 @@ class InboxUI:
         close_btn = tk.Button(
             button_frame,
             text="[ CLOSE ]",
-            command=self.inbox_window.destroy,
+            command=self.close_inbox,
             font=("Courier", 9, "bold"),
             bg="#8b0000",
             fg="#f8f8f2",
@@ -250,8 +251,9 @@ class InboxUI:
         )
         footer.pack(side=tk.BOTTOM, pady=5)
 
-        # Load inbox data
+        # Load inbox data and start auto-refresh
         self.load_inbox()
+        self.start_auto_refresh()
 
     def load_inbox(self):
         """Request inbox data from server."""
@@ -492,3 +494,78 @@ class InboxUI:
             width=12
         )
         cancel_btn.pack(side=tk.RIGHT, padx=5)
+
+    def start_auto_refresh(self):
+        """Start auto-refreshing inbox and conversation every 2 seconds."""
+        if self.inbox_window and self.inbox_window.winfo_exists():
+            # Refresh inbox list
+            self.load_inbox()
+            
+            # If viewing a conversation, refresh it too
+            if self.current_conversation:
+                self.refresh_current_conversation()
+            
+            # Schedule next refresh
+            self.auto_refresh_id = self.root.after(2000, self.start_auto_refresh)
+
+    def refresh_current_conversation(self):
+        """Refresh the currently open conversation without losing scroll position."""
+        if not self.current_conversation:
+            return
+        
+        # Save scroll position
+        try:
+            scroll_pos = self.msg_display.yview()
+        except:
+            scroll_pos = None
+        
+        # Reload conversation
+        messages = self.chat_client.request_conversation(self.current_conversation)
+        
+        if messages is not None:
+            # Update display
+            self.msg_display.config(state=tk.NORMAL)
+            self.msg_display.delete('1.0', tk.END)
+            
+            for msg in messages:
+                sender = msg['sender']
+                message = msg['message']
+                timestamp = msg['timestamp']
+                
+                # Format timestamp
+                try:
+                    dt = datetime.fromisoformat(timestamp)
+                    time_str = dt.strftime('%H:%M')
+                except:
+                    time_str = timestamp
+                
+                # Display message
+                if sender == self.chat_client.username:
+                    # Our message (right-aligned)
+                    self.msg_display.insert(tk.END, f"[{time_str}] ", "time")
+                    self.msg_display.insert(tk.END, "YOU: ", "you")
+                    self.msg_display.insert(tk.END, f"{message}\n", "text")
+                else:
+                    # Their message (left-aligned)
+                    self.msg_display.insert(tk.END, f"[{time_str}] ", "time")
+                    self.msg_display.insert(tk.END, f"{sender}: ", "them")
+                    self.msg_display.insert(tk.END, f"{message}\n", "text")
+            
+            self.msg_display.config(state=tk.DISABLED)
+            
+            # Restore scroll position or scroll to bottom
+            if scroll_pos:
+                self.msg_display.yview_moveto(scroll_pos[0])
+            else:
+                self.msg_display.see(tk.END)
+
+    def close_inbox(self):
+        """Close inbox and cancel auto-refresh."""
+        # Cancel auto-refresh timer
+        if self.auto_refresh_id:
+            self.root.after_cancel(self.auto_refresh_id)
+            self.auto_refresh_id = None
+        
+        # Close window
+        if self.inbox_window:
+            self.inbox_window.destroy()
