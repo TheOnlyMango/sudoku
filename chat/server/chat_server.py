@@ -346,6 +346,15 @@ class ImprovedChatServer:
             elif data.startswith('OP_FILE:'):
                 self._handle_op_file(client_socket, username, data[8:])
 
+            elif data.startswith('OP_IIR_SUBMIT:'):
+                self._handle_iir_submit(client_socket, username, data[14:])
+
+            elif data.startswith('OP_IIR_LIST:'):
+                self._handle_iir_list(client_socket, data[12:])
+
+            elif data.startswith('OP_IIR_FILE:'):
+                self._handle_iir_file(client_socket, username, data[12:])
+
             elif data.startswith('TYPING:'):
                 # Broadcast typing indicator to all clients except sender
                 self.broadcast(f'TYPING:{username}', client_socket)
@@ -555,6 +564,100 @@ class ImprovedChatServer:
         except Exception as e:
             ops_logger.error(f"File download failed: {e}")
             client_socket.send(b'OP_FILE:null\n')
+
+    def _handle_iir_submit(self, client_socket: socket.socket, username: str, data: str):
+        """Handle IIR submission.
+
+        Format: op_name:priority:dtg_info_date:dtg_cutoff:target:title:information:filename:file_data_b64
+        filename and file_data_b64 are optional (can be empty strings)
+        """
+        parts = data.split(':', 8)
+        if len(parts) < 7:
+            client_socket.send(b'IIR_SUBMIT_RESULT:False:Invalid format\n')
+            return
+
+        op_name = parts[0]
+        priority = parts[1]
+        dtg_info_date = parts[2]
+        dtg_cutoff = parts[3]
+        target = parts[4]
+        title = parts[5]
+        information = parts[6]
+        filename = parts[7] if len(parts) > 7 and parts[7] else None
+        file_data_b64 = parts[8] if len(parts) > 8 and parts[8] else None
+
+        # Validate priority
+        valid_priorities = ['routine', 'urgent', 'priority', 'flash']
+        if priority.lower() not in valid_priorities:
+            client_socket.send(b'IIR_SUBMIT_RESULT:False:Invalid priority level\n')
+            return
+
+        # If file provided, validate it
+        if filename and file_data_b64:
+            # Check file upload rate limit
+            allowed, error_msg = self.rate_limiter.check_file_rate(username)
+            if not allowed:
+                security_logger.warning(f"IIR file upload rate limit exceeded for {username}")
+                client_socket.send(f'IIR_SUBMIT_RESULT:False:{error_msg}\n'.encode('utf-8'))
+                return
+
+            try:
+                file_data = base64.b64decode(file_data_b64)
+
+                # Validate file
+                filename = sanitize_filename(filename)
+                valid, error_msg = validate_file_upload(filename, file_data)
+                if not valid:
+                    security_logger.warning(f"Invalid IIR file upload from {username}: {error_msg}")
+                    client_socket.send(f'IIR_SUBMIT_RESULT:False:{error_msg}\n'.encode('utf-8'))
+                    return
+
+            except base64.binascii.Error:
+                client_socket.send(b'IIR_SUBMIT_RESULT:False:Invalid base64 encoding\n')
+                return
+            except Exception as e:
+                ops_logger.error(f"IIR file validation failed: {e}")
+                client_socket.send(f'IIR_SUBMIT_RESULT:False:File validation failed\n'.encode('utf-8'))
+                return
+
+        # Submit IIR to database
+        success, result = self.ops_db.submit_iir(
+            op_name, username, priority, dtg_info_date, dtg_cutoff,
+            target, title, information, filename, file_data_b64
+        )
+
+        if success:
+            ops_logger.info(f"IIR SUBMITTED: {result} by {username} to '{op_name}'")
+            client_socket.send(f'IIR_SUBMIT_RESULT:True:{result}\n'.encode('utf-8'))
+        else:
+            ops_logger.error(f"IIR submission failed: {result}")
+            client_socket.send(f'IIR_SUBMIT_RESULT:False:{result}\n'.encode('utf-8'))
+
+    def _handle_iir_list(self, client_socket: socket.socket, op_name: str):
+        """Handle get IIRs request for an operation."""
+        try:
+            iirs = self.ops_db.get_iirs(op_name)
+            response = json.dumps(iirs)
+            client_socket.send(f'IIR_LIST:{response}\n'.encode('utf-8'))
+        except Exception as e:
+            ops_logger.error(f"Failed to retrieve IIRs for '{op_name}': {e}")
+            client_socket.send(b'IIR_LIST:[]\n')
+
+    def _handle_iir_file(self, client_socket: socket.socket, username: str, iir_id: str):
+        """Handle IIR file download request."""
+        try:
+            file_data_b64 = self.ops_db.get_iir_file_data(int(iir_id))
+            if file_data_b64:
+                ops_logger.info(f"IIR FILE DOWNLOAD: iir_id={iir_id} by {username}")
+                client_socket.send(f'IIR_FILE:{file_data_b64}\n'.encode('utf-8'))
+            else:
+                ops_logger.warning(f"IIR file not found for iir_id={iir_id}")
+                client_socket.send(b'IIR_FILE:null\n')
+        except ValueError:
+            client_socket.send(b'IIR_FILE:null\n')
+        except Exception as e:
+            ops_logger.error(f"IIR file download failed: {e}")
+            client_socket.send(b'IIR_FILE:null\n')
 
     def remove_client(self, client_socket: socket.socket):
         """Remove client from active connections."""

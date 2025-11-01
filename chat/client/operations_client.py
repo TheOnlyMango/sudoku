@@ -501,13 +501,51 @@ class OperationsClient:
                 fg=self.TEXT_COLOR
             ).pack(pady=(0, 10))
 
+        # Form toggle buttons
+        toggle_frame = tk.Frame(self.main_frame, bg=self.BG_COLOR)
+        toggle_frame.pack(pady=5, fill=tk.X)
+
+        self.form_mode = "post"  # "post" or "iir"
+
+        post_toggle_btn = tk.Button(
+            toggle_frame,
+            text="[ NEW POST ]",
+            command=lambda: self._toggle_form("post"),
+            font=("Courier", 9, "bold"),
+            bg=self.BUTTON_COLOR,
+            fg=self.ACCENT_COLOR,
+            activebackground=self.ACCENT_COLOR,
+            activeforeground=self.BG_COLOR,
+            relief=tk.SUNKEN,
+            bd=4,
+            cursor="hand2"
+        )
+        post_toggle_btn.pack(side=tk.LEFT, padx=5, fill=tk.X, expand=True)
+        self.post_toggle_btn = post_toggle_btn
+
+        iir_toggle_btn = tk.Button(
+            toggle_frame,
+            text="[ NEW IIR ]",
+            command=lambda: self._toggle_form("iir"),
+            font=("Courier", 9, "bold"),
+            bg=self.SYSTEM_COLOR,  # Orange - more visible
+            fg=self.BG_COLOR,
+            activebackground=self.ACCENT_COLOR,
+            activeforeground=self.BG_COLOR,
+            relief=tk.RAISED,
+            bd=4,
+            cursor="hand2"
+        )
+        iir_toggle_btn.pack(side=tk.LEFT, padx=5, fill=tk.X, expand=True)
+        self.iir_toggle_btn = iir_toggle_btn
+
         # Post form
-        form_frame = tk.Frame(self.main_frame, bg=self.PANEL_COLOR, relief=tk.RIDGE, bd=3,
-                              highlightbackground=self.ACCENT_COLOR, highlightthickness=2)
-        form_frame.pack(pady=5, fill=tk.X)
+        self.post_form_frame = tk.Frame(self.main_frame, bg=self.PANEL_COLOR, relief=tk.RIDGE, bd=3,
+                                         highlightbackground=self.ACCENT_COLOR, highlightthickness=2)
+        self.post_form_frame.pack(pady=5, fill=tk.X)
 
         tk.Label(
-            form_frame,
+            self.post_form_frame,
             text="[ NEW POST ]",
             font=("Courier", 9, "bold"),
             bg=self.PANEL_COLOR,
@@ -515,7 +553,7 @@ class OperationsClient:
         ).pack(pady=5)
 
         # Comment
-        comment_frame = tk.Frame(form_frame, bg=self.PANEL_COLOR)
+        comment_frame = tk.Frame(self.post_form_frame, bg=self.PANEL_COLOR)
         comment_frame.pack(pady=5, padx=10, fill=tk.BOTH)
         tk.Label(comment_frame, text="COMMENT:", font=("Courier", 9), bg=self.PANEL_COLOR,
                  fg=self.TEXT_COLOR).pack(anchor=tk.W)
@@ -525,7 +563,7 @@ class OperationsClient:
         self.comment_text.pack(fill=tk.BOTH, expand=True)
 
         # File upload
-        file_frame = tk.Frame(form_frame, bg=self.PANEL_COLOR)
+        file_frame = tk.Frame(self.post_form_frame, bg=self.PANEL_COLOR)
         file_frame.pack(pady=5, padx=10, fill=tk.X)
         tk.Label(file_frame, text="FILE:", font=("Courier", 9), bg=self.PANEL_COLOR,
                  fg=self.TEXT_COLOR, width=12, anchor=tk.W).pack(side=tk.LEFT)
@@ -543,10 +581,105 @@ class OperationsClient:
 
         # Post button
         post_btn = self._create_button(
-            form_frame, "[ POST ]", self._add_post,
+            self.post_form_frame, "[ POST ]", self._add_post,
             bg=self.BUTTON_COLOR, fg=self.ACCENT_COLOR
         )
         post_btn.pack(pady=10)
+
+        # IIR form (initially hidden)
+        self.iir_form_frame = tk.Frame(self.main_frame, bg=self.PANEL_COLOR, relief=tk.RIDGE, bd=3,
+                                        highlightbackground=self.ACCENT_COLOR, highlightthickness=2)
+
+        tk.Label(
+            self.iir_form_frame,
+            text="[ NEW INTELLIGENCE INFORMATION REPORT ]",
+            font=("Courier", 9, "bold"),
+            bg=self.PANEL_COLOR,
+            fg=self.SECONDARY_COLOR
+        ).pack(pady=5)
+
+        # Priority dropdown
+        priority_frame = tk.Frame(self.iir_form_frame, bg=self.PANEL_COLOR)
+        priority_frame.pack(pady=3, padx=10, fill=tk.X)
+        tk.Label(priority_frame, text="PRIORITY:", font=("Courier", 9), bg=self.PANEL_COLOR,
+                 fg=self.TEXT_COLOR, width=15, anchor=tk.W).pack(side=tk.LEFT)
+
+        from tkinter import ttk
+        self.iir_priority_var = tk.StringVar(value="routine")
+        priority_combo = ttk.Combobox(priority_frame, textvariable=self.iir_priority_var,
+                                       values=["routine", "urgent", "priority", "flash"],
+                                       state="readonly", font=("Courier", 9), width=15)
+        priority_combo.pack(side=tk.LEFT, padx=5)
+
+        # DTG Info Date
+        dtg_info_frame = tk.Frame(self.iir_form_frame, bg=self.PANEL_COLOR)
+        dtg_info_frame.pack(pady=3, padx=10, fill=tk.X)
+        tk.Label(dtg_info_frame, text="DTG INFO DATE:", font=("Courier", 9), bg=self.PANEL_COLOR,
+                 fg=self.TEXT_COLOR, width=15, anchor=tk.W).pack(side=tk.LEFT)
+        self.iir_dtg_info_entry = tk.Entry(dtg_info_frame, font=("Courier", 9), bg=self.INPUT_BG,
+                                             fg=self.TEXT_COLOR, insertbackground=self.TEXT_COLOR, relief=tk.FLAT)
+        self.iir_dtg_info_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
+
+        # DTG Cutoff
+        dtg_cutoff_frame = tk.Frame(self.iir_form_frame, bg=self.PANEL_COLOR)
+        dtg_cutoff_frame.pack(pady=3, padx=10, fill=tk.X)
+        tk.Label(dtg_cutoff_frame, text="DTG CUTOFF:", font=("Courier", 9), bg=self.PANEL_COLOR,
+                 fg=self.TEXT_COLOR, width=15, anchor=tk.W).pack(side=tk.LEFT)
+        self.iir_dtg_cutoff_entry = tk.Entry(dtg_cutoff_frame, font=("Courier", 9), bg=self.INPUT_BG,
+                                               fg=self.TEXT_COLOR, insertbackground=self.TEXT_COLOR, relief=tk.FLAT)
+        self.iir_dtg_cutoff_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
+
+        # Target
+        target_frame = tk.Frame(self.iir_form_frame, bg=self.PANEL_COLOR)
+        target_frame.pack(pady=3, padx=10, fill=tk.X)
+        tk.Label(target_frame, text="TARGET:", font=("Courier", 9), bg=self.PANEL_COLOR,
+                 fg=self.TEXT_COLOR, width=15, anchor=tk.W).pack(side=tk.LEFT)
+        self.iir_target_entry = tk.Entry(target_frame, font=("Courier", 9), bg=self.INPUT_BG,
+                                          fg=self.TEXT_COLOR, insertbackground=self.TEXT_COLOR, relief=tk.FLAT)
+        self.iir_target_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
+
+        # Title
+        title_frame = tk.Frame(self.iir_form_frame, bg=self.PANEL_COLOR)
+        title_frame.pack(pady=3, padx=10, fill=tk.X)
+        tk.Label(title_frame, text="TITLE:", font=("Courier", 9), bg=self.PANEL_COLOR,
+                 fg=self.TEXT_COLOR, width=15, anchor=tk.W).pack(side=tk.LEFT)
+        self.iir_title_entry = tk.Entry(title_frame, font=("Courier", 9), bg=self.INPUT_BG,
+                                         fg=self.TEXT_COLOR, insertbackground=self.TEXT_COLOR, relief=tk.FLAT)
+        self.iir_title_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
+
+        # Information text block
+        info_frame = tk.Frame(self.iir_form_frame, bg=self.PANEL_COLOR)
+        info_frame.pack(pady=5, padx=10, fill=tk.BOTH)
+        tk.Label(info_frame, text="INFORMATION:", font=("Courier", 9), bg=self.PANEL_COLOR,
+                 fg=self.TEXT_COLOR).pack(anchor=tk.W)
+        self.iir_information_text = tk.Text(info_frame, font=("Courier", 9), bg=self.INPUT_BG,
+                                             fg=self.TEXT_COLOR, insertbackground=self.TEXT_COLOR,
+                                             height=5, wrap=tk.WORD, relief=tk.FLAT)
+        self.iir_information_text.pack(fill=tk.BOTH, expand=True)
+
+        # IIR File upload
+        iir_file_frame = tk.Frame(self.iir_form_frame, bg=self.PANEL_COLOR)
+        iir_file_frame.pack(pady=5, padx=10, fill=tk.X)
+        tk.Label(iir_file_frame, text="FILE:", font=("Courier", 9), bg=self.PANEL_COLOR,
+                 fg=self.TEXT_COLOR, width=15, anchor=tk.W).pack(side=tk.LEFT)
+
+        self.iir_selected_file = None
+        self.iir_file_label = tk.Label(iir_file_frame, text="No file selected", font=("Courier", 8),
+                                        bg=self.PANEL_COLOR, fg=self.TEXT_COLOR)
+        self.iir_file_label.pack(side=tk.LEFT, padx=5)
+
+        iir_upload_btn = self._create_button(
+            iir_file_frame, "[ BROWSE ]", self._browse_iir_file,
+            bg=self.BUTTON_COLOR, fg=self.TEXT_COLOR, width=10
+        )
+        iir_upload_btn.pack(side=tk.LEFT, padx=5)
+
+        # Submit IIR button
+        submit_iir_btn = self._create_button(
+            self.iir_form_frame, "[ SUBMIT IIR ]", self._submit_iir,
+            bg=self.BUTTON_COLOR, fg=self.ACCENT_COLOR
+        )
+        submit_iir_btn.pack(pady=10)
 
         # Posts display
         posts_frame = tk.Frame(self.main_frame, bg=self.PANEL_COLOR, relief=tk.RIDGE, bd=3,
@@ -578,8 +711,11 @@ class OperationsClient:
         self.posts_display.tag_config("user", foreground=self.SECONDARY_COLOR, font=("Courier", 9, "bold"))
         self.posts_display.tag_config("time", foreground=self.TEXT_COLOR, font=("Courier", 7))
         self.posts_display.tag_config("text", foreground=self.ACCENT_COLOR)
+        self.posts_display.tag_config("iir_header", foreground=self.ERROR_COLOR, font=("Courier", 9, "bold"))
+        self.posts_display.tag_config("iir_label", foreground=self.SYSTEM_COLOR, font=("Courier", 8, "bold"))
+        self.posts_display.tag_config("iir_value", foreground=self.ACCENT_COLOR, font=("Courier", 8))
 
-        # Load posts
+        # Load posts and IIRs
         self._load_posts()
 
     def clear_main_frame(self):
@@ -776,41 +912,57 @@ class OperationsClient:
             self._show_message(f"Error: {e}", self.ERROR_COLOR)
 
     def _load_posts(self):
-        """Load posts for current operation."""
+        """Load posts and IIRs for current operation."""
         if not self.current_operation:
             return
 
         try:
+            # Load posts
             self.message_router.send(f'OP_POSTS:{self.current_operation}')
             response = self.message_router.get_operation_response(timeout=5.0)
 
+            posts = []
             if response.startswith('OP_POSTS:'):
                 data = response[9:]
                 posts = json.loads(data)
+                # Tag posts for sorting
+                for post in posts:
+                    post['type'] = 'post'
 
-                self.posts_display.config(state=tk.NORMAL)
-                self.posts_display.delete('1.0', tk.END)
+            # Load IIRs
+            iirs = self._load_iirs()
+            for iir in iirs:
+                iir['type'] = 'iir'
 
-                if not posts:
-                    self.posts_display.insert(tk.END, "No posts yet. Be the first to contribute!\n", "text")
-                else:
-                    for post in posts:
-                        # User and timestamp
-                        self.posts_display.insert(tk.END, f">> {post['username']}", "user")
-                        self.posts_display.insert(tk.END, f" [{post['created_at']}]\n", "time")
-                        # Comment
-                        self.posts_display.insert(tk.END, f"{post['comment']}\n", "text")
+            # Combine and sort by timestamp
+            all_items = posts + iirs
+            if all_items:
+                # Sort by timestamp (use created_at for posts, dtg_submitted for IIRs)
+                all_items.sort(key=lambda x: x.get('created_at') if x['type'] == 'post' else x.get('dtg_submitted', ''))
+
+            self.posts_display.config(state=tk.NORMAL)
+            self.posts_display.delete('1.0', tk.END)
+
+            if not all_items:
+                self.posts_display.insert(tk.END, "No posts or IIRs yet. Be the first to contribute!\n", "text")
+            else:
+                for item in all_items:
+                    if item['type'] == 'post':
+                        # Display post
+                        self.posts_display.insert(tk.END, f">> {item['username']}", "user")
+                        self.posts_display.insert(tk.END, f" [{item['created_at']}]\n", "time")
+                        self.posts_display.insert(tk.END, f"{item['comment']}\n", "text")
                         # Filename if present with download link
-                        if post.get('filename'):
-                            file_tag = f"file_{post['id']}"
+                        if item.get('filename'):
+                            file_tag = f"file_{item['id']}"
                             self.posts_display.insert(tk.END, f"📎 FILE: ", "time")
-                            self.posts_display.insert(tk.END, f"{post['filename']}", file_tag)
+                            self.posts_display.insert(tk.END, f"{item['filename']}", file_tag)
                             self.posts_display.insert(tk.END, f" [click to download]\n", "time")
 
                             # Make filename clickable
                             self.posts_display.tag_config(file_tag, foreground=self.SECONDARY_COLOR, underline=1)
                             self.posts_display.tag_bind(file_tag, "<Button-1>",
-                                                        lambda e, p=post: self._download_file(p))
+                                                        lambda e, p=item: self._download_file(p))
                             self.posts_display.tag_bind(file_tag, "<Enter>",
                                                         lambda e, t=file_tag: self.posts_display.config(cursor="hand2"))
                             self.posts_display.tag_bind(file_tag, "<Leave>",
@@ -818,7 +970,56 @@ class OperationsClient:
 
                         self.posts_display.insert(tk.END, "─" * 70 + "\n", "time")
 
-                self.posts_display.config(state=tk.DISABLED)
+                    else:  # IIR
+                        # Display IIR
+                        self.posts_display.insert(tk.END, f"╔═══ INTELLIGENCE REPORT {item['report_number']} ═══╗\n", "iir_header")
+                        self.posts_display.insert(tk.END, f"║ ", "iir_header")
+                        self.posts_display.insert(tk.END, "SUBMITTER: ", "iir_label")
+                        self.posts_display.insert(tk.END, f"{item['submitter']}\n", "iir_value")
+                        self.posts_display.insert(tk.END, f"║ ", "iir_header")
+                        self.posts_display.insert(tk.END, "PRIORITY: ", "iir_label")
+                        self.posts_display.insert(tk.END, f"{item['priority'].upper()}\n", "iir_value")
+                        self.posts_display.insert(tk.END, f"║ ", "iir_header")
+                        self.posts_display.insert(tk.END, "DTG SUBMITTED: ", "iir_label")
+                        self.posts_display.insert(tk.END, f"{item['dtg_submitted']}\n", "iir_value")
+                        self.posts_display.insert(tk.END, f"║ ", "iir_header")
+                        self.posts_display.insert(tk.END, "DTG INFO DATE: ", "iir_label")
+                        self.posts_display.insert(tk.END, f"{item['dtg_info_date']}\n", "iir_value")
+                        self.posts_display.insert(tk.END, f"║ ", "iir_header")
+                        self.posts_display.insert(tk.END, "DTG CUTOFF: ", "iir_label")
+                        self.posts_display.insert(tk.END, f"{item['dtg_cutoff']}\n", "iir_value")
+                        self.posts_display.insert(tk.END, f"║ ", "iir_header")
+                        self.posts_display.insert(tk.END, "TARGET: ", "iir_label")
+                        self.posts_display.insert(tk.END, f"{item['target']}\n", "iir_value")
+                        self.posts_display.insert(tk.END, f"║ ", "iir_header")
+                        self.posts_display.insert(tk.END, "TITLE: ", "iir_label")
+                        self.posts_display.insert(tk.END, f"{item['title']}\n", "iir_value")
+                        self.posts_display.insert(tk.END, f"║ ", "iir_header")
+                        self.posts_display.insert(tk.END, "INFORMATION:\n", "iir_label")
+                        self.posts_display.insert(tk.END, f"║ ", "iir_header")
+                        self.posts_display.insert(tk.END, f"{item['information']}\n", "iir_value")
+
+                        # Filename if present with download link
+                        if item.get('filename'):
+                            file_tag = f"iir_file_{item['id']}"
+                            self.posts_display.insert(tk.END, f"║ ", "iir_header")
+                            self.posts_display.insert(tk.END, f"📎 ATTACHMENT: ", "iir_label")
+                            self.posts_display.insert(tk.END, f"{item['filename']}", file_tag)
+                            self.posts_display.insert(tk.END, f" [click to download]\n", "iir_label")
+
+                            # Make filename clickable
+                            self.posts_display.tag_config(file_tag, foreground=self.SECONDARY_COLOR, underline=1)
+                            self.posts_display.tag_bind(file_tag, "<Button-1>",
+                                                        lambda e, i=item: self._download_iir_file(i))
+                            self.posts_display.tag_bind(file_tag, "<Enter>",
+                                                        lambda e, t=file_tag: self.posts_display.config(cursor="hand2"))
+                            self.posts_display.tag_bind(file_tag, "<Leave>",
+                                                        lambda e: self.posts_display.config(cursor=""))
+
+                        self.posts_display.insert(tk.END, f"╚═══════════════════════════════════════════╝\n", "iir_header")
+                        self.posts_display.insert(tk.END, "─" * 70 + "\n", "time")
+
+            self.posts_display.config(state=tk.DISABLED)
 
         except socket.timeout:
             self.posts_display.config(state=tk.NORMAL)
@@ -1042,6 +1243,164 @@ class OperationsClient:
 
         # Remove after 3 seconds
         self.root.after(3000, msg_label.destroy)
+
+    def _toggle_form(self, mode):
+        """Toggle between post form and IIR form."""
+        self.form_mode = mode
+
+        if mode == "post":
+            # Show post form, hide IIR form
+            self.post_form_frame.pack(pady=5, fill=tk.X)
+            self.iir_form_frame.pack_forget()
+            # Update button states
+            self.post_toggle_btn.config(relief=tk.SUNKEN, bg=self.BUTTON_COLOR, fg=self.ACCENT_COLOR)
+            self.iir_toggle_btn.config(relief=tk.RAISED, bg=self.PANEL_COLOR, fg=self.TEXT_COLOR)
+        else:  # mode == "iir"
+            # Hide post form, show IIR form
+            self.post_form_frame.pack_forget()
+            self.iir_form_frame.pack(pady=5, fill=tk.X)
+            # Update button states
+            self.post_toggle_btn.config(relief=tk.RAISED, bg=self.PANEL_COLOR, fg=self.TEXT_COLOR)
+            self.iir_toggle_btn.config(relief=tk.SUNKEN, bg=self.BUTTON_COLOR, fg=self.ACCENT_COLOR)
+
+    def _browse_iir_file(self):
+        """Browse for a file to attach to IIR."""
+        filename = filedialog.askopenfilename(
+            title="Select file to attach to IIR",
+            filetypes=[("All files", "*.*")]
+        )
+
+        if filename:
+            self.iir_selected_file = filename
+            import os
+            basename = os.path.basename(filename)
+            self.iir_file_label.config(text=f"✓ {basename}", fg=self.SUCCESS_COLOR)
+        else:
+            self.iir_selected_file = None
+            self.iir_file_label.config(text="No file selected", fg=self.TEXT_COLOR)
+
+    def _submit_iir(self):
+        """Submit an Intelligence Information Report."""
+        # Get all field values
+        priority = self.iir_priority_var.get()
+        dtg_info_date = self.iir_dtg_info_entry.get().strip()
+        dtg_cutoff = self.iir_dtg_cutoff_entry.get().strip()
+        target = self.iir_target_entry.get().strip()
+        title = self.iir_title_entry.get().strip()
+        information = self.iir_information_text.get('1.0', tk.END).strip()
+
+        # Validate required fields
+        if not all([dtg_info_date, dtg_cutoff, target, title, information]):
+            self._show_message("All fields required except file attachment", self.ERROR_COLOR)
+            return
+
+        try:
+            import os
+            import base64
+
+            filename = None
+            file_data = None
+
+            # Read and encode file if selected
+            if self.iir_selected_file:
+                try:
+                    with open(self.iir_selected_file, 'rb') as f:
+                        file_data = base64.b64encode(f.read()).decode('utf-8')
+                    filename = os.path.basename(self.iir_selected_file)
+                except Exception as e:
+                    self._show_message(f"✗ Error reading file: {e}", self.ERROR_COLOR)
+                    return
+
+            # Build message - ensure empty strings for optional fields
+            message = f'OP_IIR_SUBMIT:{self.current_operation}:{priority}:{dtg_info_date}:{dtg_cutoff}:{target}:{title}:{information}:{filename or ""}:{file_data or ""}'
+
+            self.message_router.send(message)
+            response = self.message_router.get_operation_response(timeout=10.0)
+
+            if response.startswith('IIR_SUBMIT_RESULT:'):
+                parts = response[18:].split(':', 1)
+                success = parts[0] == 'True'
+                result = parts[1] if len(parts) > 1 else ""
+
+                if success:
+                    # result is the IR number
+                    self._show_message(f"✓ IIR submitted: {result}", self.SUCCESS_COLOR)
+                    # Clear form
+                    self.iir_priority_var.set("routine")
+                    self.iir_dtg_info_entry.delete(0, tk.END)
+                    self.iir_dtg_cutoff_entry.delete(0, tk.END)
+                    self.iir_target_entry.delete(0, tk.END)
+                    self.iir_title_entry.delete(0, tk.END)
+                    self.iir_information_text.delete('1.0', tk.END)
+                    self.iir_selected_file = None
+                    self.iir_file_label.config(text="No file selected", fg=self.TEXT_COLOR)
+                    # Reload posts and IIRs
+                    self._load_posts()
+                else:
+                    self._show_message(f"✗ {result}", self.ERROR_COLOR)
+
+        except TimeoutError:
+            self._show_message("Server timeout - IIR may be too large", self.ERROR_COLOR)
+        except Exception as e:
+            self._show_message(f"Error: {e}", self.ERROR_COLOR)
+
+    def _load_iirs(self):
+        """Load IIRs for current operation."""
+        if not self.current_operation:
+            return []
+
+        try:
+            self.message_router.send(f'OP_IIR_LIST:{self.current_operation}')
+            response = self.message_router.get_operation_response(timeout=5.0)
+
+            if response.startswith('IIR_LIST:'):
+                data = response[9:]
+                iirs = json.loads(data)
+                return iirs
+            return []
+
+        except Exception as e:
+            print(f"Error loading IIRs: {e}")
+            return []
+
+    def _download_iir_file(self, iir):
+        """Download file from IIR."""
+        try:
+            import os
+            import base64
+            from tkinter import filedialog
+
+            # Request file data from server
+            self.message_router.send(f'OP_IIR_FILE:{iir["id"]}')
+
+            # Longer timeout for large files
+            response = self.message_router.get_operation_response(timeout=30.0)
+
+            if response.startswith('IIR_FILE:'):
+                file_data_b64 = response[9:]
+                if file_data_b64 and file_data_b64 != "null":
+                    # Ask where to save
+                    save_path = filedialog.asksaveasfilename(
+                        defaultextension="",
+                        initialfile=iir['filename'],
+                        title="Save file as"
+                    )
+
+                    if save_path:
+                        # Decode and save file
+                        file_data = base64.b64decode(file_data_b64)
+                        with open(save_path, 'wb') as f:
+                            f.write(file_data)
+                        self._show_message(f"✓ File saved: {os.path.basename(save_path)}", self.SUCCESS_COLOR)
+                else:
+                    self._show_message("✗ File not found", self.ERROR_COLOR)
+            else:
+                self._show_message("✗ Failed to download file", self.ERROR_COLOR)
+
+        except TimeoutError:
+            self._show_message("Server timeout downloading file", self.ERROR_COLOR)
+        except Exception as e:
+            self._show_message(f"✗ Error: {e}", self.ERROR_COLOR)
 
     def _on_abort(self):
         """Handle abort button."""
