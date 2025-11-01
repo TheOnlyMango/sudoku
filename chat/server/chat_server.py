@@ -568,23 +568,23 @@ class ImprovedChatServer:
     def _handle_iir_submit(self, client_socket: socket.socket, username: str, data: str):
         """Handle IIR submission.
 
-        Format: op_name:priority:dtg_info_date:dtg_cutoff:target:title:information:filename:file_data_b64
-        filename and file_data_b64 are optional (can be empty strings)
+        Format: JSON object with all IIR fields
         """
-        parts = data.split(':', 8)
-        if len(parts) < 7:
+        try:
+            iir_data = json.loads(data)
+            op_name = iir_data.get('operation')
+            priority = iir_data.get('priority')
+            dtg_info_date = iir_data.get('dtg_info_date')
+            dtg_cutoff = iir_data.get('dtg_cutoff')
+            target = iir_data.get('target')
+            title = iir_data.get('title')
+            information = iir_data.get('information')
+            filename = iir_data.get('filename') if iir_data.get('filename') else None
+            file_data_b64 = iir_data.get('file_data') if iir_data.get('file_data') else None
+        except (json.JSONDecodeError, KeyError) as e:
+            ops_logger.error(f"Invalid IIR submission format: {e}")
             client_socket.send(b'IIR_SUBMIT_RESULT:False:Invalid format\n')
             return
-
-        op_name = parts[0]
-        priority = parts[1]
-        dtg_info_date = parts[2]
-        dtg_cutoff = parts[3]
-        target = parts[4]
-        title = parts[5]
-        information = parts[6]
-        filename = parts[7] if len(parts) > 7 and parts[7] else None
-        file_data_b64 = parts[8] if len(parts) > 8 and parts[8] else None
 
         # Validate priority
         valid_priorities = ['routine', 'urgent', 'priority', 'flash']

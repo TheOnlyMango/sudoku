@@ -1317,8 +1317,19 @@ class OperationsClient:
                     self._show_message(f"✗ Error reading file: {e}", self.ERROR_COLOR)
                     return
 
-            # Build message - ensure empty strings for optional fields
-            message = f'OP_IIR_SUBMIT:{self.current_operation}:{priority}:{dtg_info_date}:{dtg_cutoff}:{target}:{title}:{information}:{filename or ""}:{file_data or ""}'
+            # Build message using JSON to avoid colon conflicts
+            iir_data = {
+                'operation': self.current_operation,
+                'priority': priority,
+                'dtg_info_date': dtg_info_date,
+                'dtg_cutoff': dtg_cutoff,
+                'target': target,
+                'title': title,
+                'information': information,
+                'filename': filename or '',
+                'file_data': file_data or ''
+            }
+            message = f'OP_IIR_SUBMIT:{json.dumps(iir_data)}'
 
             self.message_router.send(message)
             response = self.message_router.get_operation_response(timeout=10.0)
