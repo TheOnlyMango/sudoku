@@ -589,6 +589,16 @@ class InboxUI:
         Args:
             sender: Username who sent the DM
         """
+        # Brief delay to ensure server has processed and saved the message
+        # (Especially important for outgoing messages that trigger callback immediately)
+        self.root.after(100, lambda: self._do_refresh(sender))
+
+    def _do_refresh(self, sender):
+        """Actually perform the refresh after brief delay.
+
+        Args:
+            sender: Username who sent the DM
+        """
         # Reload inbox to update conversation list (unread counts, etc.)
         self.load_inbox()
 
