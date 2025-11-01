@@ -368,7 +368,7 @@ class ImprovedChatServer:
         # Store message in chat history
         self.auth_db.add_chat_message(username, message, self.session_id)
 
-        chat_logger.info(f"CHAT MESSAGE: {username} ({len(message)} chars)")
+        chat_logger.info(f"CHAT MESSAGE: {username}")
         self.broadcast(f'MSG:{username}:{message}', client_socket)
 
     def _handle_direct_message(self, client_socket: socket.socket, username: str, data: str):
@@ -496,7 +496,7 @@ class ImprovedChatServer:
                 with open(file_path, 'wb') as f:
                     f.write(file_data)
 
-                ops_logger.info(f"FILE UPLOAD: '{filename}' ({len(file_data)} bytes) by {username} to '{op_name}'")
+                ops_logger.info(f"FILE UPLOAD: '{filename}' by {username} to '{op_name}'")
 
             except base64.binascii.Error:
                 client_socket.send(b'OP_POST_RESULT:False:Invalid base64 encoding\n')
@@ -506,7 +506,7 @@ class ImprovedChatServer:
                 client_socket.send(f'OP_POST_RESULT:False:Upload failed\n'.encode('utf-8'))
                 return
         else:
-            ops_logger.info(f"OPERATION POST: {username} to '{op_name}' ({len(comment)} chars)")
+            ops_logger.info(f"OPERATION POST: {username} to '{op_name}'")
 
         success, msg = self.ops_db.add_post(op_name, username, comment, filename, file_path)
         if not success:
@@ -524,7 +524,7 @@ class ImprovedChatServer:
         try:
             file_data_b64 = self.ops_db.get_file_data(int(post_id))
             if file_data_b64:
-                ops_logger.info(f"FILE DOWNLOAD: post_id={post_id} by {username} ({len(file_data_b64)} bytes)")
+                ops_logger.info(f"FILE DOWNLOAD: post_id={post_id} by {username}")
                 # Send in chunks to avoid buffer issues
                 client_socket.send(f'OP_FILE:{file_data_b64}\n'.encode('utf-8'))
             else:
