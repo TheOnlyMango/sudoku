@@ -10,7 +10,7 @@ import sys
 import logging
 from io import StringIO
 from datetime import datetime
-from chat_server_improved import ImprovedChatServer
+from chat.server.chat_server import ImprovedChatServer
 
 
 class GUILogHandler(logging.Handler):
@@ -211,7 +211,7 @@ class ServerGUI:
             self.running = True
 
             # Hook up logging to GUI
-            from server_logging import chat_logger, ops_logger, security_logger
+            from chat.server.logging import chat_logger, ops_logger, security_logger
             handler = GUILogHandler(self)
             formatter = logging.Formatter('%(message)s')
             handler.setFormatter(formatter)

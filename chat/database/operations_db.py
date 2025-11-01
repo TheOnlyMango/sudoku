@@ -6,7 +6,7 @@ import os
 from datetime import datetime
 from typing import List, Dict, Optional, Tuple
 import re
-from db_pool import get_pool
+from chat.database.db_pool import get_pool
 
 
 class OperationsDB:

@@ -12,10 +12,10 @@ from datetime import datetime
 
 # Add parent directory to path to import config reader
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from chat_config_reader import get_config
-from auth_ui import AuthUI
-from inbox_ui import InboxUI
-from message_router import MessageRouter
+from chat.config.reader import get_config
+from chat.client.auth_ui import AuthUI
+from chat.client.inbox_ui import InboxUI
+from chat.client.message_router import MessageRouter
 
 
 class ChatClient:

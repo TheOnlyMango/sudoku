@@ -2,9 +2,66 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Project Structure
+
+This repository contains two main projects:
+1. **Sudoku Game** - A puzzle game with GUI and CLI interfaces
+2. **SHNet Chat System** - A secure chat application with operations/wiki features
+
+```
+sudoku/  (root)
+├── main.py                      # Sudoku game entry point
+├── gui_main.py                  # Sudoku GUI launcher
+│
+├── sudoku/                      # Sudoku game module
+│   ├── board.py                 # Board representation & validation
+│   ├── solver.py                # Backtracking solver
+│   ├── generator.py             # Puzzle generator
+│   ├── game.py                  # CLI interface
+│   └── gui.py                   # GUI interface
+│
+├── chat/                        # Chat system module
+│   ├── server/                  # Server components
+│   │   ├── chat_server.py       # Main chat server
+│   │   ├── server_gui.py        # Server GUI
+│   │   └── logging.py           # Server logging
+│   ├── client/                  # Client components
+│   │   ├── chat_client.py       # Chat client logic
+│   │   ├── operations_client.py # Operations/wiki client
+│   │   ├── message_router.py    # Message multiplexer
+│   │   ├── auth_ui.py           # Authentication UI
+│   │   └── inbox_ui.py          # Direct messaging UI
+│   ├── database/                # Database layer
+│   │   ├── auth_db.py           # User authentication
+│   │   ├── operations_db.py     # Operations/wiki data
+│   │   └── db_pool.py           # Connection pooling
+│   ├── network/                 # Networking
+│   │   └── encryption.py        # Socket encryption
+│   └── config/                  # Configuration
+│       ├── security.py          # Security policies
+│       └── reader.py            # Config file reader
+│
+├── utils/                       # Shared utilities
+│   ├── spy_names.py             # Name generator
+│   └── diagnostics.py           # Network diagnostics
+│
+├── scripts/                     # Helper scripts
+│   ├── chat_client.py           # Launch chat client
+│   ├── chat_server.py           # Launch chat server
+│   └── set_server.py            # Update server config
+│
+├── tests/                       # Test suite
+│   ├── test_board.py
+│   ├── test_solver.py
+│   ├── test_generator.py
+│   └── test_security_features.py
+│
+└── logs/                        # Application logs
+```
+
 ## Development Commands
 
-### Running the Game
+### Running the Sudoku Game
 ```bash
 # GUI mode (default)
 python3 main.py
@@ -17,6 +74,18 @@ python3 gui_main.py
 python3 main.py --cli
 ```
 
+### Running the Chat System
+```bash
+# Launch chat server
+python3 scripts/chat_server.py
+
+# Launch chat client
+python3 scripts/chat_client.py
+
+# Update server address
+python3 scripts/set_server.py <server_address>
+```
+
 ### Running Tests
 ```bash
 # Run all tests with pytest
@@ -24,6 +93,9 @@ python3 -m pytest tests/ -v
 
 # Run specific test file
 python3 -m pytest tests/test_board.py -v
+
+# Run security tests
+python3 tests/test_security_features.py
 
 # Run with unittest (alternative)
 python3 -m unittest discover tests/
@@ -38,9 +110,9 @@ python3 -m pytest tests/test_solver.py::TestSudokuSolver -v
 python3 -m pytest tests/test_solver.py::TestSudokuSolver::test_solve_puzzle -v
 ```
 
-## Architecture Overview
+## Sudoku Game Architecture
 
-This is a Sudoku game with clean separation between game logic, solving algorithms, and user interface.
+Clean separation between game logic, solving algorithms, and user interface.
 
 ### Core Components
 
@@ -140,4 +212,130 @@ Constants at top of SudokuGUI class define color scheme:
 
 ## Dependencies
 
-None - uses only Python standard library (random, copy, enum, typing, sys, argparse, tkinter, unittest).
+**Sudoku**: None - uses only Python standard library (random, copy, enum, typing, sys, argparse, tkinter, unittest).
+
+**Chat System**: Python standard library (sqlite3, threading, socket, json, tkinter) + optional cryptography for encryption.
+
+## Chat System Architecture
+
+The chat system is organized into distinct layers for maintainability and security.
+
+### Server Components (chat/server/)
+
+**chat_server.py** - `ImprovedChatServer` class
+- Main server handling chat messages, DMs, and operations
+- Token-based authentication with rate limiting
+- File upload validation (size limits, MIME type checking)
+- Database connection pooling for performance
+- Optional socket encryption support
+
+**server_gui.py** - `ServerGUI` class
+- Tkinter-based server console with terminal styling
+- Real-time log display with color-coded messages
+- Graceful shutdown handling (background thread to prevent GUI freeze)
+- Start/stop controls and log clearing
+
+**logging.py** - Server logging framework
+- Separate loggers: chat_logger, ops_logger, security_logger
+- File rotation and console output
+- Formatted timestamps and log levels
+
+### Client Components (chat/client/)
+
+**chat_client.py** - `ChatClient` class
+- Main chat client with 90s hacker aesthetic
+- Integrates MessageRouter for clean message handling
+- Manages authentication, inbox, and operations UIs
+- Real-time message display and user list updates
+
+**message_router.py** - `MessageRouter` class
+- **Critical component**: Solves socket race condition
+- Single receiver thread reads ALL messages from socket
+- Routes messages to appropriate queues based on prefix:
+  - `OP_*` → operations_queue
+  - `DM_INBOX:`, `DM_CONVERSATION:`, `DM_MARKED_READ:` → chat_queue
+  - Everything else → chat_queue
+- Eliminates race conditions from multiple recv() calls on same socket
+
+**auth_ui.py** - `AuthUI` class
+- Login, registration, and anonymous mode
+- Password hashing and validation
+- Random spy name generation
+
+**inbox_ui.py** - `InboxUI` class
+- Direct messaging interface
+- Auto-refresh every 1 second for live updates
+- Smart scroll handling (auto-scroll on new messages)
+- Unread message indicators (star icons)
+
+**operations_client.py** - `OperationsClient` class
+- Operations/wiki system for collaborative content
+- File upload/download with progress tracking
+- Message threading per operation
+
+### Database Layer (chat/database/)
+
+**auth_db.py** - User authentication database
+- User registration with password hashing (SHA-256)
+- Token generation and validation
+- Message history storage and retrieval
+
+**operations_db.py** - Operations/wiki database
+- Operation creation and management
+- File storage and retrieval
+- Message threading
+
+**db_pool.py** - Database connection pooling
+- Thread-safe connection management
+- Automatic cleanup and resource management
+
+### Network Layer (chat/network/)
+
+**encryption.py** - Socket encryption
+- Optional TLS-like encryption for socket communications
+- Requires cryptography library
+
+### Configuration (chat/config/)
+
+**security.py** - Security policies
+- TokenManager: Session token generation and validation
+- RateLimiter: Per-user rate limiting for messages and uploads
+- File validation: Size limits, MIME type checking, filename sanitization
+- Constants: MAX_FILE_SIZE, MAX_MESSAGE_LENGTH, MAX_BUFFER_SIZE
+
+**reader.py** - Configuration file reader
+- Loads chat_config.json for server/client settings
+- Tailscale integration support
+- Auto-detection of server addresses
+
+### Key Design Decisions
+
+1. **MessageRouter Pattern**: Prevents socket race conditions by having a single receiver thread that routes messages to appropriate queues. This was critical fix for DM inbox functionality.
+
+2. **Thread Safety**: Background threads for server operations (shutdown, file transfers) to prevent GUI freezing. Thread-safe GUI updates using `root.after()`.
+
+3. **Security Layers**:
+   - Token-based authentication (not just username/password)
+   - Rate limiting per user
+   - File upload validation (size, type, sanitized names)
+   - SQL injection protection via parameterized queries
+
+4. **Live Updates**: Auto-refresh mechanisms in inbox (1s intervals) and operations for real-time collaboration without polling overhead.
+
+5. **Graceful Shutdown**: Proper cleanup of connections, threads, and resources with timeout mechanisms.
+
+### Common Chat System Tasks
+
+**Adding a new message type**:
+1. Define message prefix in message_router.py routing logic
+2. Add handler in chat_server.py
+3. Add client-side processing in chat_client.py or operations_client.py
+4. Update logging in server/logging.py if needed
+
+**Changing refresh rates**:
+- inbox_ui.py: `start_auto_refresh()` - currently 1000ms (1 second)
+- operations_client.py: Similar pattern for operations updates
+
+**Modifying security policies**:
+- chat/config/security.py: Update constants like MAX_FILE_SIZE, rate limits
+- Restart server for changes to take effect

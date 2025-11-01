@@ -2,8 +2,13 @@
 """Test script for security features."""
 
 import sys
+import os
 import time
-from security_config import (
+
+# Add parent directory to path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from chat.config.security import (
     TokenManager, RateLimiter, validate_file_upload,
     sanitize_filename, MAX_FILE_SIZE
 )

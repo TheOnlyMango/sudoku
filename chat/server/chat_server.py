@@ -22,15 +22,15 @@ import os
 import uuid
 from datetime import datetime
 from typing import Dict, Optional, Tuple
-from operations_db import OperationsDB
-from auth_db import AuthDB
-from security_config import (
+from chat.database.operations_db import OperationsDB
+from chat.database.auth_db import AuthDB
+from chat.config.security import (
     TokenManager, RateLimiter, validate_file_upload, sanitize_filename,
     MAX_BUFFER_SIZE, MAX_MESSAGE_LENGTH
 )
-from server_logging import chat_logger, ops_logger, security_logger
-from db_pool import get_pool
-from chat_config_reader import get_config
+from chat.server.logging import chat_logger, ops_logger, security_logger
+from chat.database.db_pool import get_pool
+from chat.config.reader import get_config
 
 
 class ImprovedChatServer:

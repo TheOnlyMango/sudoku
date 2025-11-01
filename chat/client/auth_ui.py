@@ -2,8 +2,8 @@
 
 import tkinter as tk
 from tkinter import ttk, messagebox
-from auth_db import AuthDB
-from russian_spy_names import get_random_spy_name, generate_unique_spy_name
+from chat.database.auth_db import AuthDB
+from utils.spy_names import get_random_spy_name, generate_unique_spy_name
 
 
 class AuthUI:
