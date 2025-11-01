@@ -167,6 +167,7 @@ class InboxUI:
         self.message_display.tag_config("sent", foreground="#8be9fd", justify=tk.RIGHT)  # Cyan for sent, right-aligned
         self.message_display.tag_config("received", foreground="#ff79c6", justify=tk.LEFT)  # Pink for received, left-aligned
         self.message_display.tag_config("time", foreground=self.PROMPT_COLOR)
+        self.message_display.tag_config("time_center", foreground=self.PROMPT_COLOR, justify=tk.CENTER)  # Centered timestamps
         self.message_display.tag_config("prompt", foreground=self.PROMPT_COLOR)
 
         # Reply input area
@@ -323,25 +324,34 @@ class InboxUI:
         self.message_display.insert(tk.END, f"  CONVERSATION WITH: {other_user.upper()}\n", "received")
         self.message_display.insert(tk.END, "═" * 80 + "\n\n", "prompt")
 
+        last_timestamp = None
+
         for msg in messages:
             sender = msg['sender']
             message = msg['message']
             timestamp = msg['timestamp']
 
-            # Format timestamp
+            # Parse timestamp
             try:
                 dt = datetime.fromisoformat(timestamp)
-                time_str = dt.strftime("%H:%M")
             except:
-                time_str = timestamp[:5] if len(timestamp) >= 5 else timestamp
+                dt = None
+
+            # Show timestamp header if >30 minutes passed or first message
+            if dt:
+                if last_timestamp is None or (dt - last_timestamp).total_seconds() > 1800:  # 1800s = 30 min
+                    time_str = dt.strftime("%H:%M")
+                    # Centered timestamp header
+                    self.message_display.insert(tk.END, f"{time_str}\n", "time_center")
+                    last_timestamp = dt
 
             # Determine if sent or received
             if sender == self.chat_client.username:
-                # Sent message - aligned right like iPhone, no username
-                self.message_display.insert(tk.END, f"[{time_str}] {message}\n\n", "sent")
+                # Sent message - aligned right, no username, no timestamp
+                self.message_display.insert(tk.END, f"{message}\n\n", "sent")
             else:
-                # Received message - aligned left, no username
-                self.message_display.insert(tk.END, f"[{time_str}] {message}\n\n", "received")
+                # Received message - aligned left, no username, no timestamp
+                self.message_display.insert(tk.END, f"{message}\n\n", "received")
 
         self.message_display.see(tk.END)
         self.message_display.config(state=tk.DISABLED)
@@ -532,25 +542,34 @@ class InboxUI:
             self.message_display.insert(tk.END, f"  CONVERSATION WITH: {self.current_conversation.upper()}\n", "received")
             self.message_display.insert(tk.END, "═" * 80 + "\n\n", "prompt")
 
+            last_timestamp = None
+
             for msg in messages:
                 sender = msg['sender']
                 message = msg['message']
                 timestamp = msg['timestamp']
 
-                # Format timestamp
+                # Parse timestamp
                 try:
                     dt = datetime.fromisoformat(timestamp)
-                    time_str = dt.strftime('%H:%M')
                 except:
-                    time_str = timestamp
+                    dt = None
+
+                # Show timestamp header if >30 minutes passed or first message
+                if dt:
+                    if last_timestamp is None or (dt - last_timestamp).total_seconds() > 1800:  # 1800s = 30 min
+                        time_str = dt.strftime('%H:%M')
+                        # Centered timestamp header
+                        self.message_display.insert(tk.END, f"{time_str}\n", "time_center")
+                        last_timestamp = dt
 
                 # Display message using iPhone-style format (same as display_conversation)
                 if sender == self.chat_client.username:
-                    # Our message - aligned right, no username
-                    self.message_display.insert(tk.END, f"[{time_str}] {message}\n\n", "sent")
+                    # Our message - aligned right, no username, no timestamp
+                    self.message_display.insert(tk.END, f"{message}\n\n", "sent")
                 else:
-                    # Their message - aligned left, no username
-                    self.message_display.insert(tk.END, f"[{time_str}] {message}\n\n", "received")
+                    # Their message - aligned left, no username, no timestamp
+                    self.message_display.insert(tk.END, f"{message}\n\n", "received")
 
             self.message_display.config(state=tk.DISABLED)
 
