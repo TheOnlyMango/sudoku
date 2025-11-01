@@ -585,13 +585,13 @@ class ChatClient:
             unread = conv['unread']
             preview = conv['preview']
 
-            # Format: "★ @username (2)" for unread, "  @username" for read
+            # Format: "★ username (2)" for unread, "  username" for read
             if unread > 0:
-                display = f"★ @{user} ({unread})"
+                display = f"★ {user} ({unread})"
                 self.conv_listbox.insert(tk.END, display)
                 # Set color for unread (will need custom item coloring)
             else:
-                display = f"  @{user}"
+                display = f"  {user}"
                 self.conv_listbox.insert(tk.END, display)
 
     def on_conversation_select(self, event):
@@ -948,13 +948,22 @@ class ChatClient:
             return
 
         try:
-            # Check if it's a DM (/msg username message)
-            if message.startswith('/msg '):
+            # Check if it's a DM using @username syntax
+            if message.startswith('@'):
+                parts = message[1:].split(' ', 1)
+                if len(parts) == 2:
+                    recipient, dm_message = parts
+                    self.message_router.send(f'DM:{recipient}:{dm_message}')
+                    self.display_message(f"[DM to {recipient}]", "dm")
+                else:
+                    self.display_message(">> Usage: @username message", "system")
+            # Check if it's a DM (/msg username message) - legacy support
+            elif message.startswith('/msg '):
                 parts = message[5:].split(' ', 1)
                 if len(parts) == 2:
                     recipient, dm_message = parts
                     self.message_router.send(f'DM:{recipient}:{dm_message}')
-                    self.display_message(f"[DM to {recipient}] {dm_message}", "dm")
+                    self.display_message(f"[DM to {recipient}]", "dm")
                 else:
                     self.display_message(">> Usage: /msg username message", "system")
             else:
@@ -1048,7 +1057,8 @@ class ChatClient:
             parts = message[3:].split(':', 1)
             if len(parts) == 2:
                 sender, msg = parts
-                self.display_message(f"[DM from {sender}] {msg}", "dm")
+                # Show DM notification without message content (keep it private)
+                self.display_message(f"[DM from {sender}]", "dm")
 
                 # Trigger DM callbacks for real-time inbox updates
                 for callback, sender_filter in self.dm_callbacks:
@@ -1063,7 +1073,8 @@ class ChatClient:
             parts = message[8:].split(':', 2)
             if len(parts) == 3:
                 sender, timestamp, msg = parts
-                self.display_message(f"[OFFLINE MSG from {sender}] {msg}", "dm")
+                # Show offline DM notification without message content (keep it private)
+                self.display_message(f"[OFFLINE MSG from {sender}]", "dm")
 
         elif message.startswith('INFO:'):
             # Show INFO messages in status bar, not chat window
