@@ -11,9 +11,11 @@ from chat.client.chat_client import ChatClient
 from chat.client.operations_client import OperationsClient
 import sys
 import os
+import socket
 # Add parent directory to path for auth_ui import
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from chat.client.auth_ui import AuthUI
+from chat.config.reader import ConfigReader
 
 
 class DraculaDialog:
@@ -855,8 +857,34 @@ class SudokuGUI:
             else:
                 self.status_var.set("◈ Error highlighting: OFF")
 
+    def check_server_available(self) -> bool:
+        """Check if chat server is available before showing login.
+
+        Returns:
+            True if server is reachable, False otherwise
+        """
+        try:
+            # Load server config
+            config = ConfigReader()
+            host, port = config.get_server_address()
+
+            # Attempt to connect with short timeout
+            test_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            test_socket.settimeout(1.0)  # 1 second timeout
+            test_socket.connect((host, port))
+            test_socket.close()
+            return True
+        except (socket.error, socket.timeout, Exception):
+            # Server not available - silently fail
+            return False
+
     def launch_chat(self):
         """Launch the secret chat interface with authentication."""
+        # Security check: Only show login if server is available
+        if not self.check_server_available():
+            # Silently do nothing - normal game experience for lay users
+            return
+
         # Store auth credentials
         auth_data = {'username': None, 'password': None, 'is_anon': False}
 
