@@ -1,6 +1,10 @@
-# Sudoku Game
+# Sudoku Game & SHNet Chat System (Beta v0.9.0)
 
-A Sudoku game implemented in Python with both GUI and CLI interfaces, featuring puzzle generation, solving, and interactive gameplay.
+A dual-purpose application featuring:
+1. **Sudoku Game** - Classic puzzle game with GUI and CLI interfaces
+2. **SHNet Chat System** - Secure chat with operations/wiki features and 90s hacker aesthetic
+
+> **BETA RELEASE**: This software is in beta testing. Please report issues at https://github.com/TheOnlyMango/sudoku/issues
 
 ## Features
 
@@ -186,15 +190,15 @@ This will prompt for a username and launch the chat interface.
 
 ### Chat Server
 
-The chat server must be running on the main node before clients can connect.
+The chat server must be running before clients can connect.
 
-**Start server on main-win (100.115.233.16):**
+**Start server:**
 
 ```bash
-python3 chat_server.py
+python3 scripts/chat_server.py
 ```
 
-The server listens on port 7331 and provides:
+The server listens on port 7331 (configurable) and provides:
 - Real-time group messaging
 - Direct messages between users
 - Offline message storage (SQLite)
@@ -216,8 +220,91 @@ The server listens on port 7331 and provides:
 
 ### Network Setup
 
-The chat uses Tailscale IPs for secure communication:
-- **Server**: main-win @ 100.115.233.16:7331
-- **Clients**: Any Tailscale-connected device
+The chat system supports multiple network configurations:
 
-All messages are transmitted over the encrypted Tailscale network.
+**Localhost (Default)**:
+```bash
+# Server and clients on same machine
+python3 scripts/chat_server.py
+python3 scripts/chat_client.py
+```
+
+**LAN/Tailscale Network**:
+1. Find your server's IP address:
+   ```bash
+   tailscale status    # For Tailscale
+   ifconfig            # For local networks
+   ```
+
+2. Configure clients using helper script:
+   ```bash
+   python3 scripts/set_server.py <server-ip>
+   ```
+
+3. Or manually edit `chat_config.json`:
+   ```json
+   {
+     "client": {
+       "server_address": "<YOUR_SERVER_IP>",
+       "server_port": 7331
+     }
+   }
+   ```
+
+**Security**: The chat system supports optional encryption (requires `cryptography` package). Set the `CHAT_ENCRYPTION_SECRET` environment variable for secure communications.
+
+## Beta Testing
+
+This software is currently in beta (v0.9.0). We're preparing for v1.0.0 release and welcome your feedback!
+
+### Known Issues
+- Chat system tests are incomplete
+- Password strength requirements not enforced for chat registration
+- Some documentation may need updates
+
+### Reporting Issues
+Found a bug or have a feature request? Please open an issue at:
+https://github.com/TheOnlyMango/sudoku/issues
+
+Include:
+- Steps to reproduce
+- Expected vs actual behavior
+- Your platform (OS, Python version)
+- Any error messages
+
+## Contributing
+
+Contributions are welcome! This project is open source under the MIT License.
+
+### Development Setup
+1. Clone the repository
+2. Copy `.env.example` to `.env` and configure
+3. Copy `chat_config.example.json` to `chat_config.json` and customize
+4. Run tests: `python3 -m pytest tests/ -v`
+
+### Areas Needing Help
+- Comprehensive chat system tests
+- Documentation improvements  
+- Cross-platform testing
+- Security audits
+- UI/UX enhancements
+
+See `docs/CLAUDE.md` for detailed development documentation.
+
+## License
+
+MIT License - see [LICENSE](LICENSE) file for details.
+
+Copyright (c) 2025 TheOnlyMango
+
+## Contact
+
+- GitHub: https://github.com/TheOnlyMango/sudoku
+- Email: theonlymango.petroleum750@passmail.net
+- Issues: https://github.com/TheOnlyMango/sudoku/issues
+
+## Acknowledgments
+
+Built with Python standard library and optional `cryptography` for secure communications.
+
+Special thanks to the open source community and beta testers!
