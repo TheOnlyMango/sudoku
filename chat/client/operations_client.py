@@ -737,8 +737,8 @@ class OperationsClient:
             fg=self.ACCENT_COLOR,
             insertbackground=self.ACCENT_COLOR,
             state=tk.DISABLED,
-            wrap=tk.NONE,  # No wrapping - let content determine width
-            width=105,  # Set width to accommodate 100-char borders plus margin
+            wrap=tk.WORD,  # Word wrapping for natural text flow
+            width=75,  # Set width to accommodate 70-char borders plus margin
             relief=tk.FLAT,
             highlightthickness=0
         )
@@ -1126,8 +1126,8 @@ class OperationsClient:
             if not all_items:
                 self.posts_display.insert(tk.END, "No posts or IIRs yet. Be the first to contribute!\n", "text")
             else:
-                # Define display width for borders (characters)
-                BOX_WIDTH = 100
+                # Define display width for borders (characters) - reduced for better fit
+                BOX_WIDTH = 70
 
                 for item in all_items:
                     if item['type'] == 'post':
@@ -1156,12 +1156,12 @@ class OperationsClient:
                         self.posts_display.insert(tk.END, "\n" + "─" * BOX_WIDTH + "\n", "time")
 
                     else:  # IIR
-                        # Display IIR with full-width bordered box
+                        # Display IIR with simple 3/4 box (top/bottom borders only)
                         report_title = f"INTELLIGENCE REPORT {item['report_number']}"
-                        # Calculate padding for centered title (accounting for ╔, ╗, and 2 spaces around title)
+                        # Calculate padding for centered title
                         total_padding = BOX_WIDTH - len(report_title) - 2 - 2  # -2 for corners, -2 for spaces
                         left_padding = total_padding // 2
-                        right_padding = total_padding - left_padding  # Handle odd numbers correctly
+                        right_padding = total_padding - left_padding
                         top_border = f"╔{'═' * left_padding} {report_title} {'═' * right_padding}╗\n"
                         self.posts_display.insert(tk.END, top_border, "iir_header")
 
@@ -1170,112 +1170,49 @@ class OperationsClient:
                         dtg_info = item['dtg_info_date'].upper() if item.get('dtg_info_date') else ''
                         dtg_cutoff_val = item['dtg_cutoff'].upper() if item.get('dtg_cutoff') else ''
 
-                        # Helper function to create padded line with right border
-                        def iir_line(label, value):
-                            content = f"{label} {value}"
-                            padding_needed = BOX_WIDTH - len(content) - 3  # -3 for ║ on both sides + space
-                            return f"║ {content}{' ' * padding_needed}║\n"
-
-                        # SUBMITTED (moved to top, DTG format)
-                        self.posts_display.insert(tk.END, "║ ", "iir_header")
+                        # Simple indented fields (no vertical borders)
+                        self.posts_display.insert(tk.END, "  ", "text")
                         self.posts_display.insert(tk.END, "SUBMITTED:", "iir_label")
-                        content_len = len(f"SUBMITTED: {dtg_submitted}")
-                        padding_needed = BOX_WIDTH - content_len - 3
-                        self.posts_display.insert(tk.END, f" {dtg_submitted}{' ' * padding_needed}", "iir_value")
-                        self.posts_display.insert(tk.END, "║\n", "iir_header")
+                        self.posts_display.insert(tk.END, f" {dtg_submitted}\n", "iir_value")
 
-                        # SUBMITTER (all caps)
-                        self.posts_display.insert(tk.END, "║ ", "iir_header")
+                        self.posts_display.insert(tk.END, "  ", "text")
                         self.posts_display.insert(tk.END, "SUBMITTER:", "iir_label")
-                        submitter_caps = item['submitter'].upper()
-                        content_len = len(f"SUBMITTER: {submitter_caps}")
-                        padding_needed = BOX_WIDTH - content_len - 3
-                        self.posts_display.insert(tk.END, f" {submitter_caps}{' ' * padding_needed}", "iir_value")
-                        self.posts_display.insert(tk.END, "║\n", "iir_header")
+                        self.posts_display.insert(tk.END, f" {item['submitter'].upper()}\n", "iir_value")
 
-                        # PRIORITY (all caps)
-                        self.posts_display.insert(tk.END, "║ ", "iir_header")
+                        self.posts_display.insert(tk.END, "  ", "text")
                         self.posts_display.insert(tk.END, "PRIORITY:", "iir_label")
-                        priority_caps = item['priority'].upper()
-                        content_len = len(f"PRIORITY: {priority_caps}")
-                        padding_needed = BOX_WIDTH - content_len - 3
-                        self.posts_display.insert(tk.END, f" {priority_caps}{' ' * padding_needed}", "iir_value")
-                        self.posts_display.insert(tk.END, "║\n", "iir_header")
+                        self.posts_display.insert(tk.END, f" {item['priority'].upper()}\n", "iir_value")
 
-                        # DATE OF INFO (renamed from DTG INFO DATE, all caps)
-                        self.posts_display.insert(tk.END, "║ ", "iir_header")
+                        self.posts_display.insert(tk.END, "  ", "text")
                         self.posts_display.insert(tk.END, "DATE OF INFO:", "iir_label")
-                        content_len = len(f"DATE OF INFO: {dtg_info}")
-                        padding_needed = BOX_WIDTH - content_len - 3
-                        self.posts_display.insert(tk.END, f" {dtg_info}{' ' * padding_needed}", "iir_value")
-                        self.posts_display.insert(tk.END, "║\n", "iir_header")
+                        self.posts_display.insert(tk.END, f" {dtg_info}\n", "iir_value")
 
-                        # CUTOFF (renamed from DTG CUTOFF, all caps)
-                        self.posts_display.insert(tk.END, "║ ", "iir_header")
+                        self.posts_display.insert(tk.END, "  ", "text")
                         self.posts_display.insert(tk.END, "CUTOFF:", "iir_label")
-                        content_len = len(f"CUTOFF: {dtg_cutoff_val}")
-                        padding_needed = BOX_WIDTH - content_len - 3
-                        self.posts_display.insert(tk.END, f" {dtg_cutoff_val}{' ' * padding_needed}", "iir_value")
-                        self.posts_display.insert(tk.END, "║\n", "iir_header")
+                        self.posts_display.insert(tk.END, f" {dtg_cutoff_val}\n", "iir_value")
 
-                        # TARGET (all caps)
-                        self.posts_display.insert(tk.END, "║ ", "iir_header")
+                        self.posts_display.insert(tk.END, "  ", "text")
                         self.posts_display.insert(tk.END, "TARGET:", "iir_label")
-                        target_caps = item['target'].upper()
-                        content_len = len(f"TARGET: {target_caps}")
-                        padding_needed = BOX_WIDTH - content_len - 3
-                        self.posts_display.insert(tk.END, f" {target_caps}{' ' * padding_needed}", "iir_value")
-                        self.posts_display.insert(tk.END, "║\n", "iir_header")
+                        self.posts_display.insert(tk.END, f" {item['target'].upper()}\n", "iir_value")
 
-                        # TITLE (all caps)
-                        self.posts_display.insert(tk.END, "║ ", "iir_header")
+                        self.posts_display.insert(tk.END, "  ", "text")
                         self.posts_display.insert(tk.END, "TITLE:", "iir_label")
-                        title_caps = item['title'].upper()
-                        content_len = len(f"TITLE: {title_caps}")
-                        padding_needed = BOX_WIDTH - content_len - 3
-                        self.posts_display.insert(tk.END, f" {title_caps}{' ' * padding_needed}", "iir_value")
-                        self.posts_display.insert(tk.END, "║\n", "iir_header")
+                        self.posts_display.insert(tk.END, f" {item['title'].upper()}\n", "iir_value")
 
-                        # INFORMATION (all caps, multi-line with right border)
-                        self.posts_display.insert(tk.END, "║ ", "iir_header")
-                        self.posts_display.insert(tk.END, "INFORMATION:", "iir_label")
-                        content_len = len("INFORMATION:")
-                        padding_needed = BOX_WIDTH - content_len - 3
-                        self.posts_display.insert(tk.END, f"{' ' * padding_needed}", "iir_value")
-                        self.posts_display.insert(tk.END, "║\n", "iir_header")
-
-                        # Information text (all caps, word-wrapped with borders and proper gaps)
+                        # INFORMATION field with simple indentation
+                        self.posts_display.insert(tk.END, "  ", "text")
+                        self.posts_display.insert(tk.END, "INFORMATION:\n", "iir_label")
+                        # Simple word wrap with 4-space indentation
                         info_caps = item['information'].upper()
-                        words = info_caps.split()
-                        current_line = "║  "  # Left border + 2-space margin
+                        self.posts_display.insert(tk.END, f"    {info_caps}\n", "iir_value")
 
-                        for word in words:
-                            # Check if word fits on current line (with space separator if not first word)
-                            test_line = current_line + (" " if len(current_line) > 3 else "") + word
-                            if len(test_line) <= BOX_WIDTH - 3:  # -3 for right margin + ║
-                                current_line = test_line
-                            else:
-                                # Finish current line with padding and right border
-                                padding_needed = BOX_WIDTH - len(current_line) - 2  # -2 for margin + ║
-                                self.posts_display.insert(tk.END, current_line + " " * padding_needed + " ║\n", "iir_value")
-                                current_line = "║  " + word
-
-                        # Close final line
-                        if len(current_line) > 3:
-                            padding_needed = BOX_WIDTH - len(current_line) - 2
-                            self.posts_display.insert(tk.END, current_line + " " * padding_needed + " ║\n", "iir_value")
-
-                        # Filename if present with download link
+                        # Filename if present
                         if item.get('filename'):
                             file_tag = f"iir_file_{item['id']}"
-                            self.posts_display.insert(tk.END, "║ ", "iir_header")
+                            self.posts_display.insert(tk.END, "  ", "text")
                             self.posts_display.insert(tk.END, "📎 ATTACHMENT: ", "iir_label")
                             self.posts_display.insert(tk.END, f"{item['filename']}", file_tag)
-                            self.posts_display.insert(tk.END, " [click to download]", "iir_label")
-                            content_len = len(f"📎 ATTACHMENT: {item['filename']} [click to download]")
-                            padding_needed = BOX_WIDTH - content_len - 3
-                            self.posts_display.insert(tk.END, " " * padding_needed, "iir_label")
-                            self.posts_display.insert(tk.END, "║\n", "iir_header")
+                            self.posts_display.insert(tk.END, " [click to download]\n", "iir_label")
 
                             # Make filename clickable
                             self.posts_display.tag_config(file_tag, foreground=self.SECONDARY_COLOR, underline=1)
@@ -1286,10 +1223,10 @@ class OperationsClient:
                             self.posts_display.tag_bind(file_tag, "<Leave>",
                                                         lambda e: self.posts_display.config(cursor=""))
 
-                        # Bottom border (full width)
-                        self.posts_display.insert(tk.END, f"╚{'═' * (BOX_WIDTH - 2)}╝", "iir_header")
-                        # Full-width separator (newline before to prevent color bleed)
-                        self.posts_display.insert(tk.END, "\n" + "─" * BOX_WIDTH + "\n", "time")
+                        # Bottom border
+                        self.posts_display.insert(tk.END, f"╚{'═' * (BOX_WIDTH - 2)}╝\n", "iir_header")
+                        # Separator
+                        self.posts_display.insert(tk.END, "─" * BOX_WIDTH + "\n", "time")
 
             self.posts_display.config(state=tk.DISABLED)
 
