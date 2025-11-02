@@ -18,7 +18,7 @@ class ChatConfig:
     # Default fallback values
     DEFAULT_SERVER_HOST = "0.0.0.0"
     DEFAULT_SERVER_PORT = 7331
-    DEFAULT_CLIENT_SERVER = "100.115.233.16"  # main-win Tailscale IP
+    DEFAULT_CLIENT_SERVER = "127.0.0.1"  # Localhost - configure for your network
     DEFAULT_CLIENT_PORT = 7331
 
     def __init__(self, config_path: str = "chat_config.json"):

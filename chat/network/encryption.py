@@ -6,12 +6,13 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2
 from cryptography.hazmat.backends import default_backend
 import base64
 import socket
+import os
 from typing import Optional
 
 
 # Shared secret for symmetric encryption
-# In production, this should be securely distributed or use key exchange
-SHARED_SECRET = b"sudoku_secure_chat_2024_tailscale_network"
+# Read from environment variable or use default (CHANGE THIS IN PRODUCTION!)
+SHARED_SECRET = os.environ.get('CHAT_ENCRYPTION_SECRET', 'CHANGE_THIS_SECRET_KEY_IN_PRODUCTION').encode()
 
 
 def derive_key(password: bytes, salt: bytes = b'sudoku_salt_v1') -> bytes:

@@ -100,12 +100,13 @@ print()
 print("[5] Recommendations:")
 print()
 
-if server_addr == "100.115.233.16":
-    print("  ⚠ You're trying to connect to 100.115.233.16 (main-win)")
+if server_addr == "127.0.0.1" or server_addr == "localhost":
+    print("  ⚠ You're trying to connect to localhost")
     print("    If your server is running on a different machine:")
     print()
-    print("    1. Find your server's Tailscale IP:")
-    print("       tailscale status")
+    print("    1. Find your server's IP address (or Tailscale IP):")
+    print("       tailscale status    # For Tailscale networks")
+    print("       ifconfig            # For local networks")
     print()
     print("    2. Update chat_config.json on THIS machine:")
     print('       {"client": {"server_address": "SERVER_IP", "server_port": 7331}}')
@@ -115,8 +116,8 @@ if server_addr == "100.115.233.16":
 elif server_addr == "auto":
     print("  ⚠ Server address is set to 'auto' but resolution failed")
     print("    Try using explicit IP or hostname:")
-    print("       python3 set_server.py kali-1")
-    print("       python3 set_server.py 100.67.191.120")
+    print("       python3 set_server.py chat-server")
+    print("       python3 set_server.py <server-ip-address>")
 else:
     print(f"  Current server: {server_addr}:{server_port}")
     print()

@@ -1,0 +1,14 @@
+{
+  "server": {
+    "host": "0.0.0.0",
+    "port": 7331
+  },
+  "client": {
+    "server_address": "127.0.0.1",
+    "server_port": 7331
+  },
+  "tailscale": {
+    "enabled": true,
+    "hostname": "chat-server"
+  }
+}
